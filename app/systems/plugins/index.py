@@ -159,6 +159,7 @@ class BaseGenerator(object):
 
         plugin = type(self.dynamic_class_name, tuple(parent_classes), self.attributes)
         plugin.__module__ = self.module_path
+        plugin.spec = self._spec
         setattr(self.module, self.dynamic_class_name, plugin)
 
         for parent in self.parents:
@@ -179,6 +180,7 @@ class BaseGenerator(object):
 
         overlay_plugin = type(self.base_class_name, (plugin,), {})
         overlay_plugin.__module__ = self.module_path
+        overlay_plugin.spec = self._spec
         setattr(self.module, self.base_class_name, overlay_plugin)
         return overlay_plugin
 
