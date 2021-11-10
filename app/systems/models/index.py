@@ -53,7 +53,7 @@ def check_facade(class_name):
 def get_model_name(name, spec = None):
     if spec and 'class' in spec:
         return spec['class']
-    return name.title()
+    return re.sub(r'[\_\-]+', '', name.title())
 
 def get_module_name(key, name):
     if key == 'data_base':
@@ -95,7 +95,13 @@ class ModelGenerator(object):
 
         try:
             self.spec = self.full_spec[key].get(name, None)
-            self.app_name = self.spec.get('app', name)
+            self.submodel = self.spec.get('submodel', False)
+
+            if self.submodel:
+                self.app_name = self.spec['base']
+            else:
+                self.app_name = self.spec.get('app', name)
+
         except Exception as e:
             raise ModelNotExistsError("Model specification {} {} does not exist".format(key, name))
 
@@ -185,6 +191,8 @@ class ModelGenerator(object):
     def init_parents(self):
         if 'base' not in self.spec:
             self.parents = [ self.base_model ]
+        elif self.submodel:
+            self.parents = [ self.get_model(self.spec['base'], Model) ]
         else:
             self.parents = [ self.get_model(self.spec['base'], BaseModel) ]
 
