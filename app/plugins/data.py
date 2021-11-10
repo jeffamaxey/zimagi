@@ -48,7 +48,13 @@ class BasePlugin(base.BasePlugin):
         super().generate(plugin, generator)
 
         def facade(self):
-            return getattr(self.command, "_{}".format(generator.spec['data']))
+            if getattr(generator, 'provider', False):
+                parent_name = generator.get_parent().spec['data']
+                data_name = "{}_{}".format(parent_name, generator.provider)
+            else:
+                data_name = generator.spec['data']
+
+            return self.command.facade(data_name)
 
         def store_lock_id(self):
             return generator.spec['store_lock']
