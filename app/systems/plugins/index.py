@@ -189,7 +189,8 @@ class BaseGenerator(object):
                 item[index] = self.parse_values(element)
         elif isinstance(item, dict):
             for name, element in item.items():
-                item[name] = self.parse_values(element)
+                if name != 'fields':
+                    item[name] = self.parse_values(element)
         elif isinstance(item, str):
             item = self.parser.parse(item)
         return item
