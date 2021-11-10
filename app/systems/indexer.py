@@ -85,6 +85,7 @@ class Indexer(
                     elif name[0] != '_' and re.match(r'^[^\.]+\.(yml|yaml)$', name, re.IGNORECASE):
                         logger.debug("Loading specification from file: {}".format(file_path))
                         spec_data = load_yaml(file_path)
+                        sub_model_data = {'data': {}}
 
                         if spec_data:
                             for key, info in spec_data.items():
@@ -99,7 +100,6 @@ class Indexer(
                                                 set_command_module(module, spec)
                                             else:
                                                 app_name = spec.get('app', name)
-                                                self.module_map[key][app_name] = module_info
 
                                                 if key in ('data', 'data_base', 'data_mixins'):
                                                     module_name = model_index.get_module_name(key, app_name)
@@ -108,11 +108,41 @@ class Indexer(
 
                                                     self.model_class_path[model_class] = module_name
                                                     self.model_class_path[dynamic_class] = module_name
+                                                    self.module_map[key][app_name] = module_info
 
+                                                elif key == 'plugin':
+                                                    if spec.get('base', '') == 'data' and spec.get('data', False):
+                                                        for provider_name, provider_spec in spec.get('providers', {}).items():
+                                                            data_name = "{}_{}".format(spec['data'], provider_name)
+
+                                                            module_name = model_index.get_module_name('data', spec['data'])
+                                                            model_class = model_index.get_model_name(data_name)
+                                                            dynamic_class = model_index.get_dynamic_class_name(model_class)
+
+                                                            self.model_class_path[model_class] = module_name
+                                                            self.model_class_path[dynamic_class] = module_name
+                                                            self.module_map['data'][data_name] = module_info
+
+                                                            sub_model_data['data'][data_name] = {
+                                                                'class': model_class,
+                                                                'base': spec['data'],
+                                                                'fields': provider_spec.get('fields', {}) if provider_spec else {},
+                                                                'submodel': True
+                                                            }
+
+                            deep_merge(spec_data, sub_model_data)
                             deep_merge(self._spec, spec_data)
 
             for spec_path in self.get_module_dirs('spec'):
                 load_directory(spec_path)
+
+            for name, spec in self._spec['data'].items():
+                if spec.get('submodel', False):
+                    parent_spec = self._spec['data'][spec['base']]
+
+                    self._spec['data'][name]['roles'] = parent_spec.get('roles', {})
+                    self._spec['data'][name]['api'] = parent_spec.get('api', True)
+                    self._spec['data'][name]['packages'] = parent_spec.get('packages', [])
 
         return self._spec
 
@@ -184,7 +214,7 @@ class Indexer(
         logger.info("* Generating data models")
         for name, spec in self.spec.get('data', {}).items():
             logger.info(" > {}".format(name))
-            self._models[name] = model_index.Model(name, True)
+            self._models[name] = model_index.Model(name, ensure_exists = True)
             logger.info("    - {}".format(self._models[name]))
             logger.info("    - {}".format(self._models[name].facade_class))
 
