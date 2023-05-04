@@ -25,7 +25,7 @@ class BaseProvider(BasePlugin('source')):
         self.import_columns = self._get_import_columns()
 
         self.facade_index = settings.MANAGER.index.get_facade_index()
-        self.state_id = "import:{}".format(id)
+        self.state_id = f"import:{id}"
 
 
     def get_relations(self, name):
@@ -51,7 +51,7 @@ class BaseProvider(BasePlugin('source')):
                 contexts = ['all']
 
             next_id = self.command.get_state(self.state_id)
-            process = False if next_id else True
+            process = not next_id
 
             for context in list(contexts):
                 context_id = serialize(context)
@@ -150,93 +150,82 @@ class BaseProvider(BasePlugin('source')):
             if relations_ok and fields_ok:
                 saved_data.append(record)
             else:
-                self.command.warning("Skipping {} {} record {}: {}".format(
-                    self.id,
-                    name,
-                    index,
-                    record
-                ))
+                self.command.warning(f"Skipping {self.id} {name} record {index}: {record}")
 
         return saved_data
 
 
     def save(self, name, records):
-        if records:
-            main_facade = self.command.facade(name, False)
+        if not records:
+            return
+        main_facade = self.command.facade(name, False)
 
-            for index, record in enumerate(records):
-                add_record = True
-                model_data = {}
-                scope_filters = {}
-                multi_relationships = {}
-                warn_on_failure = True
+        for index, record in enumerate(records):
+            add_record = True
+            model_data = {}
+            scope_filters = {}
+            multi_relationships = {}
+            warn_on_failure = True
 
-                for field, spec in self.get_relations(name).items():
-                    value = self._get_relation_id(spec, index, record)
-                    required = spec.get('required', False)
+            for field, spec in self.get_relations(name).items():
+                value = self._get_relation_id(spec, index, record)
+                required = spec.get('required', False)
 
-                    if spec.get('multiple', False):
-                        facade = self.command.facade(spec['data'], False)
-                        related_instances = []
-
-                        if value is not None:
-                            for id in value:
-                                related_instances.append(facade.retrieve_by_id(id))
-
-                        if related_instances:
-                            multi_relationships[field] = related_instances
-                        elif required:
-                            add_record = False
-                    else:
-                        if value is not None:
-                            scope_filters[field] = value
-                        elif not required:
-                            scope_filters[field] = None
-                        else:
-                            add_record = False
-
-                    if not spec.get('warn', True) and not add_record:
-                        warn_on_failure = False
-
-                for field, spec in self.get_map(name).items():
-                    if not isinstance(spec, dict):
-                        spec = { 'column': spec }
-
-                    value = self._get_field_value(spec, index, record)
+                if spec.get('multiple', False):
+                    facade = self.command.facade(spec['data'], False)
+                    related_instances = []
 
                     if value is not None:
-                        if isinstance(value, datetime.datetime):
-                            value = make_aware(value)
-                        model_data[field] = value
-                    elif not spec.get('required', False):
-                        model_data[field] = None
-                    else:
+                        related_instances.extend(facade.retrieve_by_id(id) for id in value)
+                    if related_instances:
+                        multi_relationships[field] = related_instances
+                    elif required:
                         add_record = False
-
-                key_value = model_data.pop(main_facade.key(), None)
-                if add_record:
-                    logger.info("Saving {} record for {}: [ {} ] - {}".format(main_facade.name, key_value, scope_filters, model_data))
-                    main_facade.set_scope(scope_filters)
-                    instance, created = main_facade.store(key_value, **model_data)
-
-                    for field, sub_instances in multi_relationships.items():
-                        queryset = getattr(instance, field)
-                        for sub_instance in sub_instances:
-                            queryset.add(sub_instance)
+                elif value is not None:
+                    scope_filters[field] = value
+                elif not required:
+                    scope_filters[field] = None
                 else:
-                    if warn_on_failure:
-                        self.command.warning("Failed to update {} {} record {}: {}".format(
-                            self.id,
-                            name,
-                            "{}:{}".format(key_value, index),
-                            record
-                        ))
+                    add_record = False
+
+                if not spec.get('warn', True) and not add_record:
+                    warn_on_failure = False
+
+            for field, spec in self.get_map(name).items():
+                if not isinstance(spec, dict):
+                    spec = { 'column': spec }
+
+                value = self._get_field_value(spec, index, record)
+
+                if value is not None:
+                    if isinstance(value, datetime.datetime):
+                        value = make_aware(value)
+                    model_data[field] = value
+                elif not spec.get('required', False):
+                    model_data[field] = None
+                else:
+                    add_record = False
+
+            key_value = model_data.pop(main_facade.key(), None)
+            if add_record:
+                logger.info(
+                    f"Saving {main_facade.name} record for {key_value}: [ {scope_filters} ] - {model_data}"
+                )
+                main_facade.set_scope(scope_filters)
+                instance, created = main_facade.store(key_value, **model_data)
+
+                for field, sub_instances in multi_relationships.items():
+                    queryset = getattr(instance, field)
+                    for sub_instance in sub_instances:
+                        queryset.add(sub_instance)
+            elif warn_on_failure:
+                self.command.warning(
+                    f"Failed to update {self.id} {name} record {key_value}:{index}: {record}"
+                )
 
 
     def _get_column(self, column_spec):
-        if isinstance(column_spec, dict):
-            return column_spec['column']
-        return column_spec
+        return column_spec['column'] if isinstance(column_spec, dict) else column_spec
 
     def _get_import_columns(self, name = None):
         column_map = {}
@@ -294,29 +283,23 @@ class BaseProvider(BasePlugin('source')):
             value = self._get_formatter_value(index, spec['column'], spec['formatter'], value, record)
 
         if multiple:
-            relation_filters["{}__in".format(key_field)] = value
+            relation_filters[f"{key_field}__in"] = value
         else:
             relation_filters[key_field] = value
 
-        relation_data = list(facade.values(facade.pk, **relation_filters))
-        value = None
-
-        if relation_data:
-            if multiple:
-                value = []
-                for item in relation_data:
-                    value.append(item[facade.pk])
-            else:
-                value = relation_data[0][facade.pk]
-
+        if relation_data := list(facade.values(facade.pk, **relation_filters)):
+            value = (
+                [item[facade.pk] for item in relation_data]
+                if multiple
+                else relation_data[0][facade.pk]
+            )
+        else:
+            value = None
         return value
 
 
     def _get_field_value(self, spec, index, record):
-        value = []
-        for column in ensure_list(spec['column']):
-            value.append(record[column])
-
+        value = [record[column] for column in ensure_list(spec['column'])]
         if len(value) == 1:
             value = value[0]
 
@@ -330,13 +313,14 @@ class BaseProvider(BasePlugin('source')):
 
         for relation_field, relation_spec in self.get_relations(name).items():
             if 'validators' in relation_spec:
-                validator_id = "{}:{}:{}".format(name, index, relation_spec['column'])
+                validator_id = f"{name}:{index}:{relation_spec['column']}"
                 column_value = record[relation_spec['column']]
 
-                if relation_spec.get('multiple', False):
-                    if not isinstance(column_value, (list, tuple)):
-                        separator = relation_spec.get('separator', ',')
-                        column_value = str(column_value).split(separator)
+                if relation_spec.get('multiple', False) and not isinstance(
+                    column_value, (list, tuple)
+                ):
+                    separator = relation_spec.get('separator', ',')
+                    column_value = str(column_value).split(separator)
 
                 for provider, config in relation_spec['validators'].items():
                     if not self._run_validator(validator_id, provider, config, column_value, record):
@@ -349,12 +333,10 @@ class BaseProvider(BasePlugin('source')):
 
         for field, column_spec in self.get_map(name).items():
             if isinstance(column_spec, dict) and 'validators' in column_spec:
-                validator_id = "{}:{}:{}".format(name, index, column_spec['column'])
-                column_values = []
-
-                for column in ensure_list(column_spec['column']):
-                    column_values.append(record[column])
-
+                validator_id = f"{name}:{index}:{column_spec['column']}"
+                column_values = [
+                    record[column] for column in ensure_list(column_spec['column'])
+                ]
                 if len(column_values) == 1:
                     column_values = column_values[0]
 
@@ -368,7 +350,7 @@ class BaseProvider(BasePlugin('source')):
     def _run_validator(self, id, provider, config, value, record):
         if config is None:
             config = {}
-        config['id'] = "{}:{}".format(self.id, id)
+        config['id'] = f"{self.id}:{id}"
         return self.command.get_provider(
             'validator', provider, config
         ).validate(value, record)
@@ -376,7 +358,7 @@ class BaseProvider(BasePlugin('source')):
     def _run_formatter(self, id, provider, config, value, record):
         if config is None:
             config = {}
-        config['id'] = "{}:{}".format(self.id, id)
+        config['id'] = f"{self.id}:{id}"
         return self.command.get_provider(
             'formatter', provider, config
         ).format(value, record)
@@ -386,9 +368,5 @@ class BaseProvider(BasePlugin('source')):
             spec = { 'provider': spec }
 
         return self._run_formatter(
-            "{}:{}".format(index, column),
-            spec.get('provider', 'base'),
-            spec,
-            value,
-            record
+            f"{index}:{column}", spec.get('provider', 'base'), spec, value, record
         )

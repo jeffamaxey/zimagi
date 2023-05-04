@@ -62,13 +62,16 @@ class IndexerModuleMixin(object):
                     for parent in ensure_list(config['modules']):
                         if parent and 'remote' in parent:
                             parent_name = self.remote_module_names.get(parent['remote'], None)
-                            if parent_name and parent_name in modules:
-                                if modules[parent_name]:
-                                    self.module_dependencies.setdefault(parent_name, [])
-                                    if name not in self.module_dependencies[parent_name]:
-                                        self.module_dependencies[parent_name].append(name)
+                            if (
+                                parent_name
+                                and parent_name in modules
+                                and modules[parent_name]
+                            ):
+                                self.module_dependencies.setdefault(parent_name, [])
+                                if name not in self.module_dependencies[parent_name]:
+                                    self.module_dependencies[parent_name].append(name)
 
-                                    process(parent_name, modules[parent_name])
+                                process(parent_name, modules[parent_name])
 
                 path = os.path.join(self.manager.module_dir, name)
                 self.ordered_modules[self._get_module_lib_dir(path)] = config
@@ -81,10 +84,10 @@ class IndexerModuleMixin(object):
         return self.ordered_modules
 
     def get_default_module_names(self):
-        remote_names = []
-        for module in self.default_modules:
-            remote_names.append(self.remote_module_names[module['remote']])
-        return remote_names
+        return [
+            self.remote_module_names[module['remote']]
+            for module in self.default_modules
+        ]
 
     @lru_cache(maxsize = None)
     def get_module_dirs(self, sub_dir = None, include_core = True):
@@ -101,7 +104,7 @@ class IndexerModuleMixin(object):
     def get_module_name(self, file):
         if file.startswith(self.manager.app_dir):
             return settings.CORE_MODULE
-        return file.replace(self.manager.module_dir + '/', '').split('/')[0]
+        return file.replace(f'{self.manager.module_dir}/', '').split('/')[0]
 
     def get_module_file(self, *path_components):
         module_file = None
@@ -112,7 +115,7 @@ class IndexerModuleMixin(object):
                 module_file = path
 
         if not module_file:
-            raise RequirementError("Module file {} not found".format("/".join(path_components)))
+            raise RequirementError(f'Module file {"/".join(path_components)} not found')
         return module_file
 
     def get_module_files(self, *path_components):
@@ -160,11 +163,10 @@ class IndexerModuleMixin(object):
         module_libs = OrderedDict()
         for path, config in self.get_ordered_modules().items():
             if include_core or path != self.manager.app_dir:
-                lib_dir = self._get_module_lib_dir(path)
-                if lib_dir:
+                if lib_dir := self._get_module_lib_dir(path):
                     module_libs[lib_dir] = config
 
-        logger.debug("Loading module Zimagi libraries: {}".format(module_libs))
+        logger.debug(f"Loading module Zimagi libraries: {module_libs}")
         return module_libs
 
     def _get_module_lib_dir(self, path):

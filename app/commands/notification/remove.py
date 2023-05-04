@@ -10,11 +10,9 @@ class Remove(Command('notification.remove')):
         for group in self.notify_groups:
             if self.notify_failure:
                 instance.failure_groups.filter(group = group).delete()
-                self.success("Group {} unsubscribed from {} failure notifications".format(
-                    group.name, command
-                ))
+                self.success(
+                    f"Group {group.name} unsubscribed from {command} failure notifications"
+                )
             else:
                 instance.groups.filter(group = group).delete()
-                self.success("Group {} unsubscribed from {} notifications".format(
-                    group.name, command
-                ))
+                self.success(f"Group {group.name} unsubscribed from {command} notifications")

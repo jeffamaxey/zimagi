@@ -23,10 +23,7 @@ class UserFacade(ModelFacade('user')):
 
 
     def keep(self, key = None):
-        if key:
-            return []
-
-        return settings.ADMIN_USER
+        return [] if key else settings.ADMIN_USER
 
     def keep_relations(self):
         return {

@@ -251,19 +251,20 @@ def SaveCommand(parents, base_name, facade_name,
                 facade.store(name, **fields)
 
         def remove(name):
-            if self.check_exists(facade, name):
-                instance = self.get_instance(facade, name)
-                options = self.get_scope_filters(instance)
-                options['force'] = True
-                options[_name_field] = getattr(instance, facade.key())
+            if not self.check_exists(facade, name):
+                return
+            instance = self.get_instance(facade, name)
+            options = self.get_scope_filters(instance)
+            options['force'] = True
+            options[_name_field] = getattr(instance, facade.key())
 
-                if getattr(facade.meta, 'command_base', None) is not None:
-                    command_base = facade.meta.command_base
-                else:
-                    command_base = facade.name.replace('_', ' ')
+            if getattr(facade.meta, 'command_base', None) is not None:
+                command_base = facade.meta.command_base
+            else:
+                command_base = facade.name.replace('_', ' ')
 
-                if command_base:
-                    self.exec_local("{} remove".format(command_base), options)
+            if command_base:
+                self.exec_local("{} remove".format(command_base), options)
 
         if multiple:
             state_variable = "{}-{}-{}-count".format(facade.name, base_name, facade.get_scope_name())
@@ -487,11 +488,7 @@ def ResourceCommandSet(command, parents, base_name, facade_name,
 ):
     if edit_roles:
         edit_roles = ensure_list(edit_roles)
-        if view_roles:
-            view_roles = ensure_list(view_roles) + edit_roles
-        else:
-            view_roles = edit_roles
-
+        view_roles = ensure_list(view_roles) + edit_roles if view_roles else edit_roles
     if allow_list:
         command['list'] = ListCommand(
             parents, base_name, facade_name,

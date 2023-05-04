@@ -206,7 +206,11 @@ class CommandProfile(object):
 
 
     def run(self, components = None, config = None, display_only = False, test = False):
-        self.command.data("Running profile:", "{}:{}".format(self.module.instance.name, self.name), 'profile_name')
+        self.command.data(
+            "Running profile:",
+            f"{self.module.instance.name}:{self.name}",
+            'profile_name',
+        )
 
         operation = 'run'
 
@@ -268,9 +272,11 @@ class CommandProfile(object):
             return list(set(wait_keys))
 
         def check_include(config):
-            if not callable(include_method):
-                return True
-            return include_method(self.interpolate_config_value(config))
+            return (
+                include_method(self.interpolate_config_value(config))
+                if callable(include_method)
+                else True
+            )
 
         def render_instance(name):
             instance_config = copy.deepcopy(data[component.name][name])
@@ -304,13 +310,15 @@ class CommandProfile(object):
                     name = self.interpolate_config_value(name)
 
                     if self.include_instance(name, instance_config):
-                        if isinstance(instance_config, dict):
-                            if '_foreach' in instance_config:
-                                expansion[priority] = True
+                        if (
+                            isinstance(instance_config, dict)
+                            and '_foreach' in instance_config
+                        ):
+                            expansion[priority] = True
 
                         if priority not in expansion and \
-                            name not in processed and \
-                            check_include(instance_config):
+                                name not in processed and \
+                                check_include(instance_config):
 
                             instance_config = self.interpolate_config_value(instance_config)
 
@@ -462,9 +470,7 @@ class CommandProfile(object):
         if not force and self.components and component not in self.components:
             return False
 
-        if check_data and component not in self.data:
-            return False
-        return True
+        return not check_data or component in self.data
 
     def include_inner(self, component, force = False):
         return self.include(component,
@@ -481,27 +487,25 @@ class CommandProfile(object):
             when_type = config.pop('_when_type', 'AND').upper()
 
             if when is not None:
-                result = True if when_type == 'AND' else False
+                result = when_type == 'AND'
                 for variable in ensure_list(when):
                     value = format_value('bool', self.interpolate_config_value(variable))
                     if when_type == 'AND':
                         if not value:
                             return False
-                    else:
-                        if value:
-                            result = True
+                    elif value:
+                        result = True
                 return result
 
             if when_not is not None:
-                result = True if when_type == 'AND' else False
+                result = when_type == 'AND'
                 for variable in ensure_list(when_not):
                     value = format_value('bool', self.interpolate_config_value(variable))
                     if when_type == 'AND':
                         if value:
                             return False
-                    else:
-                        if not value:
-                            result = True
+                    elif not value:
+                        result = True
                 return result
 
             if when_in is not None:
@@ -540,11 +544,11 @@ class CommandProfile(object):
 
         facade_index = self.manager.index.get_facade_index()
         excludes = ensure_list(excludes)
-        instances = []
-        for instance in self.command.get_instances(facade_index[facade_name]):
-            if not excludes or instance.name not in excludes:
-                instances.append(instance)
-        return instances
+        return [
+            instance
+            for instance in self.command.get_instances(facade_index[facade_name])
+            if not excludes or instance.name not in excludes
+        ]
 
     def get_module(self, name):
         facade = self.command.facade(self.command._module)
@@ -552,11 +556,7 @@ class CommandProfile(object):
 
 
     def get_info(self, name, config, remove = True):
-        if remove:
-            value = config.pop(name, None)
-        else:
-            value = config.get(name, None)
-        return value
+        return config.pop(name, None) if remove else config.get(name, None)
 
     def pop_info(self, name, config):
         return self.get_info(name, config, True)
@@ -595,6 +595,4 @@ class CommandProfile(object):
                 data = data.format(**replacements)
             return data
 
-        if replacements:
-            return _interpolate(copy.deepcopy(config))
-        return config
+        return _interpolate(copy.deepcopy(config)) if replacements else config

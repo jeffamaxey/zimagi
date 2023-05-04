@@ -18,17 +18,13 @@ class EncryptionMixin(object):
 class EncryptedCharField(EncryptionMixin, models.CharField):
 
     def to_python(self, value):
-        if not value:
-            return value
-        return self.decrypt(value)
+        return self.decrypt(value) if value else value
 
     def from_db_value(self, value, expression, connection):
         return self.to_python(value)
 
     def get_prep_value(self, value):
-        if not value:
-            return value
-        return self.encrypt(value)
+        return self.encrypt(value) if value else value
 
     def value_from_object(self, obj):
         value = super().value_from_object(obj)

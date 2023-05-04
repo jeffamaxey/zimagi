@@ -51,10 +51,7 @@ class CommandSchemaGenerator(BaseSchemaGenerator):
 
             resource = view.get_resource() if isinstance(view, Command) else None
 
-            keys = [
-                component for component
-                in path[len(prefix):].strip('/').split('/')
-            ]
+            keys = list(path[len(prefix):].strip('/').split('/'))
             insert_link(links, keys,
                 view.schema.get_link(
                     path,
@@ -70,15 +67,12 @@ class CommandSchemaGenerator(BaseSchemaGenerator):
         prefixes = []
         for path in paths:
             components = path.strip('/').split('/')
-            initial_components = []
-            for component in components:
-                initial_components.append(component)
-
-            prefix = '/'.join(initial_components[:-1])
-            if not prefix:
+            initial_components = list(components)
+            if prefix := '/'.join(initial_components[:-1]):
+                prefixes.append(f'/{prefix}/')
+            else:
                 return '/'
 
-            prefixes.append('/' + prefix + '/')
         return self._common_path(prefixes)
 
 

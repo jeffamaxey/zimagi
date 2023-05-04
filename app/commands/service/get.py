@@ -9,8 +9,9 @@ class Get(Command('service.get')):
         service_spec = self.manager.get_service_spec(self.service_name)
         self.data(self.key_color(self.service_name), "\n\n" + oyaml.dump(service_spec), 'service')
 
-        data = self.manager.get_service(self.service_name, restart = False, create = False)
-        if data:
+        if data := self.manager.get_service(
+            self.service_name, restart=False, create=False
+        ):
             status = data['service'].status if 'service' in data else 'not running'
             self.data('Status', status, 'status')
 

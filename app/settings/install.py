@@ -4,6 +4,7 @@ Application settings definition
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.0/ref/settings/
 """
+
 from .core import *
 
 import importlib
@@ -17,7 +18,7 @@ MANAGER = Manager()
 #-------------------------------------------------------------------------------
 # Service specific settings
 
-service_module = importlib.import_module("services.{}.settings".format(APP_SERVICE))
+service_module = importlib.import_module(f"services.{APP_SERVICE}.settings")
 for setting in dir(service_module):
     if setting == setting.upper():
         locals()[setting] = getattr(service_module, setting)

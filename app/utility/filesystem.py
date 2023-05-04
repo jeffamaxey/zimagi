@@ -88,8 +88,7 @@ def remove_file(file_path):
 
 @contextmanager
 def filesystem_dir(base_path):
-    directory = FileSystem(base_path)
-    yield directory
+    yield FileSystem(base_path)
 
 
 class FileSystem(object):
@@ -107,11 +106,7 @@ class FileSystem(object):
         return path
 
     def listdir(self, directory = None):
-        if directory:
-            path = os.path.join(self.base_path, directory)
-        else:
-            path = self.base_path
-
+        path = os.path.join(self.base_path, directory) if directory else self.base_path
         return os.listdir(path)
 
 
@@ -119,33 +114,23 @@ class FileSystem(object):
         if file_name.startswith(self.base_path):
             return file_name
 
-        if directory:
-            path = self.mkdir(directory)
-        else:
-            path = self.base_path
-
+        path = self.mkdir(directory) if directory else self.base_path
         return os.path.join(path, file_name)
 
     def exists(self, file_name, directory = None):
         path = self.path(file_name, directory = directory)
-        if os.path.exists(path):
-            return True
-        return False
+        return bool(os.path.exists(path))
 
 
     def load(self, file_name, directory = None, binary = False):
         path = self.path(file_name, directory = directory)
-        content = None
-
-        if os.path.exists(path):
-            content = load_file(path, binary)
-        return content
+        return load_file(path, binary) if os.path.exists(path) else None
 
     def save(self, content, file_name, directory = None, extension = None, binary = False, append = False, permissions = None):
         path = self.path(file_name, directory = directory)
 
         if extension:
-            path = "{}.{}".format(path, extension)
+            path = f"{path}.{extension}"
 
         save_file(path, content,
             binary = binary,

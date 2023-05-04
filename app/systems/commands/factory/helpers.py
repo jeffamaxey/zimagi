@@ -5,7 +5,7 @@ def get_value(value, default):
     return value if value is not None else default
 
 def get_facade(base_name):
-    return "_{}".format(base_name)
+    return f"_{base_name}"
 
 def get_joined_value(value, *args):
     return get_value(value, "_".join([ x for x in args if x is not None ]))
@@ -24,13 +24,10 @@ def get_field_names(command):
 
 def parse_fields(command, fields):
     for name, info in fields.items():
-        getattr(command, "parse_{}".format(info[0]))(*info[1:], tags = ['fields'])
+        getattr(command, f"parse_{info[0]}")(*info[1:], tags = ['fields'])
 
 def get_fields(command, fields):
-    data = {}
-    for name, info in fields.items():
-        data[name] = getattr(command, info[0])
-    return data
+    return {name: getattr(command, info[0]) for name, info in fields.items()}
 
 
 def exec_methods(instance, methods):

@@ -33,9 +33,7 @@ class AppOptions(object):
 
 
     def get_parser(self, name):
-        if name in self.parsers:
-            return self.parsers[name]
-        return None
+        return self.parsers[name] if name in self.parsers else None
 
 
     @lru_cache(maxsize = None)
@@ -47,10 +45,8 @@ class AppOptions(object):
     def get_default(self, name, default = None):
         self.load_config()
 
-        config_name = "option_{}".format(name)
-        if config_name in self.config:
-            return self.config[config_name]
-        return default
+        config_name = f"option_{name}"
+        return self.config[config_name] if config_name in self.config else default
 
 
     def initialize(self, reset = False):

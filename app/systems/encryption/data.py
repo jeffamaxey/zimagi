@@ -20,7 +20,4 @@ class Migration(BaseMigration):
 
 
     def _find_models(self):
-        # Find all models with encrypted fields
-        models = {}
-
-        return models
+        return {}

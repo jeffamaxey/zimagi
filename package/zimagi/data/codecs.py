@@ -10,7 +10,7 @@ class OpenAPIJSONCodec(object):
         try:
             data = utility.load_json(bytestring.decode('utf-8'))
         except ValueError as exc:
-            raise exceptions.ParseError("Malformed JSON: {}".format(exc))
+            raise exceptions.ParseError(f"Malformed JSON: {exc}")
 
         try:
             return data

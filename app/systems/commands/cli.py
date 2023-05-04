@@ -41,7 +41,7 @@ class CLI(TerminalMixin):
 
     def handle_error(self, error):
         if not isinstance(error, CommandError) and error.args:
-            self.print('** ' + self.error_color(error.args[0]), sys.stderr)
+            self.print(f'** {self.error_color(error.args[0])}', sys.stderr)
             if Runtime.debug():
                 self.print('> ' + self.traceback_color(
                         "\n".join([ item.strip() for item in format_exception_info() ])
@@ -92,14 +92,12 @@ class CLI(TerminalMixin):
             start_time = time.time()
             current_time = start_time
 
-            while (current_time - start_time) <= settings.AUTO_MIGRATE_TIMEOUT:
+            while current_time - current_time <= settings.AUTO_MIGRATE_TIMEOUT:
                 try:
                     call_command('migrate', interactive = False, verbosity = verbosity)
                     break
                 except Exception as error:
                     self.print(str(error))
-                    pass
-
                 time.sleep(settings.AUTO_MIGRATE_INTERVAL)
                 current_time = time.time()
 
@@ -184,7 +182,7 @@ class CLI(TerminalMixin):
         from utility.environment import Environment
         base_path = os.path.join(settings.PROFILER_PATH, Environment.get_active_env())
         pathlib.Path(base_path).mkdir(parents = True, exist_ok = True)
-        return os.path.join(base_path, "{}.profile".format(name))
+        return os.path.join(base_path, f"{name}.profile")
 
 
 def execute(argv):

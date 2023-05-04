@@ -67,7 +67,7 @@ class Indexer(
                     module = 'core'
                     module_path = settings.APP_DIR
                 else:
-                    module = base_path.replace(settings.MODULE_BASE_PATH + '/', '').split('/')[1]
+                    module = base_path.replace(f'{settings.MODULE_BASE_PATH}/', '').split('/')[1]
                     module_path = os.path.join(self.manager.module_dir, module)
 
                 module_info = Collection(
@@ -120,7 +120,7 @@ class Indexer(
             for name, description in self.spec['roles'].items():
                 self._roles[name] = description
 
-            logger.debug("Application roles: {}".format(self._roles))
+            logger.debug(f"Application roles: {self._roles}")
 
         return self._roles
 
@@ -134,11 +134,7 @@ class Indexer(
 
     @lru_cache(maxsize = None)
     def get_facade_index(self):
-        facade_index = {}
-        for model in self.get_models():
-            facade = model.facade
-            facade_index[model._meta.data_name] = facade
-        return facade_index
+        return {model._meta.data_name: model.facade for model in self.get_models()}
 
 
     @property
@@ -154,11 +150,13 @@ class Indexer(
 
     @lru_cache(maxsize = None)
     def get_plugin_providers(self, name, include_system = False):
-        providers = {}
-        for provider, provider_class in self._plugin_providers[name]['providers'].items():
-            if include_system or not provider_class.check_system():
-                providers[provider] = provider_class
-        return providers
+        return {
+            provider: provider_class
+            for provider, provider_class in self._plugin_providers[name][
+                'providers'
+            ].items()
+            if include_system or not provider_class.check_system()
+        }
 
 
     def generate(self):
@@ -177,38 +175,38 @@ class Indexer(
     def generate_data_structures(self):
         logger.info("* Generating data mixins")
         for name, spec in self.spec.get('data_mixins', {}).items():
-            logger.info(" > {}".format(name))
+            logger.info(f" > {name}")
             self._model_mixins[name] = model_index.ModelMixin(name)
-            logger.info("    - {}".format(self._model_mixins[name]))
-            logger.info("    - {}".format(self._model_mixins[name].facade_class))
+            logger.info(f"    - {self._model_mixins[name]}")
+            logger.info(f"    - {self._model_mixins[name].facade_class}")
 
         logger.info("* Generating base data models")
         for name, spec in self.spec.get('data_base', {}).items():
-            logger.info(" > {}".format(name))
+            logger.info(f" > {name}")
             self._base_models[name] = model_index.BaseModel(name)
-            logger.info("    - {}".format(self._base_models[name]))
-            logger.info("    - {}".format(self._base_models[name].facade_class))
+            logger.info(f"    - {self._base_models[name]}")
+            logger.info(f"    - {self._base_models[name].facade_class}")
 
         logger.info("* Generating data models")
         for name, spec in self.spec.get('data', {}).items():
-            logger.info(" > {}".format(name))
+            logger.info(f" > {name}")
             self._models[name] = model_index.Model(name, True)
-            logger.info("    - {}".format(self._models[name]))
-            logger.info("    - {}".format(self._models[name].facade_class))
+            logger.info(f"    - {self._models[name]}")
+            logger.info(f"    - {self._models[name].facade_class}")
 
 
     def generate_commands(self):
         logger.info("* Generating command mixins")
         for name, spec in self.spec.get('command_mixins', {}).items():
-            logger.info(" > {}".format(name))
+            logger.info(f" > {name}")
             self._command_mixins[name] = command_index.CommandMixin(name)
-            logger.info("    - {}".format(self._command_mixins[name]))
+            logger.info(f"    - {self._command_mixins[name]}")
 
         logger.info("* Generating base commands")
         for name, spec in self.spec.get('command_base', {}).items():
-            logger.info(" > {}".format(name))
+            logger.info(f" > {name}")
             self._base_commands[name] = command_index.BaseCommand(name)
-            logger.info("    - {}".format(self._base_commands[name]))
+            logger.info(f"    - {self._base_commands[name]}")
 
         logger.info("* Generating command tree")
         self._command_tree = command_index.generate_command_tree(
@@ -219,17 +217,17 @@ class Indexer(
     def generate_plugins(self):
         logger.info("* Generating base plugins")
         for name, spec in self.spec.get('plugin', {}).items():
-            logger.info(" > {}".format(name))
+            logger.info(f" > {name}")
             self._plugin_providers[name] = {
                 'base': plugin_index.BasePlugin(name, True),
                 'providers': {}
             }
-            logger.info("    - {}".format(self._plugin_providers[name]['base']))
+            logger.info(f"    - {self._plugin_providers[name]['base']}")
 
             providers = {}
             for provider_name, info in spec.get('providers', {}).items():
                 providers[provider_name] = plugin_index.BaseProvider(name, provider_name, True)
-                logger.info("      - {}".format(providers[provider_name]))
+                logger.info(f"      - {providers[provider_name]}")
 
             self._plugin_providers[name]['providers'] = providers
 
@@ -239,23 +237,24 @@ class Indexer(
             logger.debug(oyaml.dump(self.spec, indent = 2))
 
     def print_command_tree(self, command, prefix = ''):
-        logger.info("{} {}".format(prefix, command))
+        logger.info(f"{prefix} {command}")
         if getattr(command, 'get_subcommands', None):
             for subcommand in command.get_subcommands():
-                self.print_command_tree(subcommand, "{} > ".format(prefix))
+                self.print_command_tree(subcommand, f"{prefix} > ")
 
 
     def print_results(self):
-        if settings.LOG_LEVEL == 'info':
-            logger.info('* Registered models')
-            logger.info(self._base_models)
-            logger.info(self._model_mixins)
-            logger.info(self._models)
+        if settings.LOG_LEVEL != 'info':
+            return
+        logger.info('* Registered models')
+        logger.info(self._base_models)
+        logger.info(self._model_mixins)
+        logger.info(self._models)
 
-            logger.info('* Django registered models')
-            for model in apps.get_models():
-                logger.info(" - {}".format(model))
-                model_index.display_model_info(model)
+        logger.info('* Django registered models')
+        for model in apps.get_models():
+            logger.info(f" - {model}")
+            model_index.display_model_info(model)
 
-            logger.info('* Command tree')
-            self.print_command_tree(self._command_tree)
+        logger.info('* Command tree')
+        self.print_command_tree(self._command_tree)

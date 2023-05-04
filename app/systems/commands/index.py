@@ -33,9 +33,7 @@ class CallbackNotExistsError(Exception):
 
 
 def get_dynamic_class_name(class_name):
-    if check_dynamic(class_name):
-        return class_name
-    return "{}Dynamic".format(class_name)
+    return class_name if check_dynamic(class_name) else f"{class_name}Dynamic"
 
 def check_dynamic(class_name):
     return class_name.endswith('Dynamic')
@@ -51,13 +49,13 @@ def get_command_name(key, name, spec = None):
 
 def get_module_name(key, name):
     if key == 'command_base':
-        module_path = "commands.base.{}".format(name)
+        module_path = f"commands.base.{name}"
     elif key == 'command_mixins':
-        module_path = "commands.mixins.{}".format(name)
+        module_path = f"commands.mixins.{name}"
     elif key == 'command':
-        module_path = "commands.{}".format(name)
+        module_path = f"commands.{name}"
     else:
-        raise SpecNotFound("Key {} is not supported for command: {}".format(key, name))
+        raise SpecNotFound(f"Key {key} is not supported for command: {name}")
     return module_path
 
 def get_spec_key(module_name):
@@ -68,7 +66,7 @@ def get_spec_key(module_name):
     elif re.match(r'^commands.[a-z\_\.]+$', module_name):
         key = 'command'
     else:
-        raise SpecNotFound("Key for module {} was not found for command".format(module_name))
+        raise SpecNotFound(f"Key for module {module_name} was not found for command")
     return key
 
 
@@ -76,25 +74,23 @@ def generate_command_tree(spec, name = 'root', parent_command = None, lookup_pat
     from systems.commands.router import RouterCommand
     command = RouterCommand(name, parent_command, spec.get('priority', 1))
 
-    if name != 'root':
-        if 'base' in spec:
-            if 'resource' in spec:
-                _generate_resource_commands(command, name, spec)
-            else:
-                return Command(lookup_path)
+    if name != 'root' and 'base' in spec:
+        if 'resource' in spec:
+            _generate_resource_commands(command, name, spec)
+        else:
+            return Command(lookup_path)
 
     for sub_name, sub_spec in spec.items():
         if isinstance(sub_spec, dict):
-            subcommand = generate_command_tree(
+            if subcommand := generate_command_tree(
                 sub_spec,
                 sub_name,
                 command,
-                "{}.{}".format(lookup_path, sub_name).strip('.')
-            )
-            if subcommand:
+                f"{lookup_path}.{sub_name}".strip('.'),
+            ):
                 command[sub_name] = subcommand
 
-    return command if not command.is_empty else None
+    return None if command.is_empty else command
 
 
 def find_command(full_name, parent = None):
@@ -165,7 +161,9 @@ class CommandGenerator(object):
             for name_component in name.split('.'):
                 self.spec = self.spec[name_component]
         except Exception as e:
-            raise CommandNotExistsError("Command specification {} {} does not exist".format(key, name))
+            raise CommandNotExistsError(
+                f"Command specification {key} {name} does not exist"
+            )
 
         self.spec = self.parse_values(self.spec)
 
@@ -188,12 +186,11 @@ class CommandGenerator(object):
 
     @property
     def klass(self):
-        if getattr(self.module, self.class_name, None):
-            klass = getattr(self.module, self.class_name)
-        else:
-            klass = getattr(self.module, self.dynamic_class_name, None)
-
-        return klass
+        return (
+            getattr(self.module, self.class_name)
+            if getattr(self.module, self.class_name, None)
+            else getattr(self.module, self.dynamic_class_name, None)
+        )
 
 
     def get_command(self, name, type_function):
@@ -231,15 +228,16 @@ class CommandGenerator(object):
     def init_parents(self):
         if 'base' not in self.spec:
             self.parents = [ self.base_command ]
+        elif self.key == 'plugin_mixins':
+            self.parents = [ self.get_command(self.spec['base'], CommandMixin) ]
         else:
-            if self.key == 'plugin_mixins':
-                self.parents = [ self.get_command(self.spec['base'], CommandMixin) ]
-            else:
-                self.parents = [ self.get_command(self.spec['base'], BaseCommand) ]
+            self.parents = [ self.get_command(self.spec['base'], BaseCommand) ]
 
         if 'mixins' in self.spec:
-            for mixin in ensure_list(self.spec['mixins']):
-                self.parents.append(self.get_command(mixin, CommandMixin))
+            self.parents.extend(
+                self.get_command(mixin, CommandMixin)
+                for mixin in ensure_list(self.spec['mixins'])
+            )
 
     def init_default_attributes(self, attributes):
         if attributes is None:
@@ -301,24 +299,24 @@ def CommandMixin(name):
     mixin = CommandGenerator('command_mixins', name,
         base_command = base.BaseMixin
     )
-    klass = mixin.klass
-    if klass:
+    if klass := mixin.klass:
         return klass
 
     if not mixin.spec:
-        raise CommandNotExistsError("Command mixin {} does not exist yet".format(mixin.class_name))
+        raise CommandNotExistsError(
+            f"Command mixin {mixin.class_name} does not exist yet"
+        )
 
     return _create_command_mixin(mixin)
 
 
 def _Command(key, name, **options):
     command = CommandGenerator(key, name, **options)
-    klass = command.klass
-    if klass:
+    if klass := command.klass:
         return klass
 
     if not command.spec:
-        raise CommandNotExistsError("Command {} does not exist yet".format(command.class_name))
+        raise CommandNotExistsError(f"Command {command.class_name} does not exist yet")
 
     return _create_command(command)
 
@@ -559,11 +557,11 @@ def _get_check_method(method_base_name, method_info):
 
         if method_info['parser'] == 'variables':
             values = self.options.get(method_base_name)
-            if not default_value:
-                return len(values) > 0
-
-            return set(ensure_list(default_value)) != set(values)
-
+            return (
+                set(ensure_list(default_value)) != set(values)
+                if default_value
+                else len(values) > 0
+            )
         if default_value is None:
             return self.options.get(method_base_name) is not None
 
@@ -601,7 +599,7 @@ def _get_accessor_method(method_base_name, method_info):
 
 
 def _generate_resource_commands(command, name, spec):
-    data_spec = settings.MANAGER.get_spec('data.{}'.format(spec['resource']))
+    data_spec = settings.MANAGER.get_spec(f"data.{spec['resource']}")
 
     base_name = spec.get('base_name', name)
     roles_spec = data_spec.get('roles', {})
@@ -626,18 +624,18 @@ def _generate_resource_commands(command, name, spec):
 
 
 def display_command_info(klass, prefix = '', display_function = logger.info, properties = True, methods = True):
-    display_function("{}{}".format(prefix, klass.__name__))
+    display_function(f"{prefix}{klass.__name__}")
     for parent in klass.__bases__:
-        display_command_info(parent, "{}  << ".format(prefix), display_function)
+        display_command_info(parent, f"{prefix}  << ", display_function)
 
     if properties:
-        display_function("{} properties:".format(prefix))
+        display_function(f"{prefix} properties:")
         for attribute in dir(klass):
             if not attribute.startswith('__') and not callable(getattr(klass, attribute)):
-                display_function("{}  ->  {}".format(prefix, attribute))
+                display_function(f"{prefix}  ->  {attribute}")
 
     if methods:
-        display_function("{} methods:".format(prefix))
+        display_function(f"{prefix} methods:")
         for attribute in dir(klass):
             if not attribute.startswith('__') and callable(getattr(klass, attribute)):
-                display_function("{}  **  {}".format(prefix, attribute))
+                display_function(f"{prefix}  **  {attribute}")

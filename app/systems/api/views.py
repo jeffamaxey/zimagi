@@ -15,7 +15,12 @@ logger = logging.getLogger(__name__)
 def format_error(request, error):
     query_params = ''
     if request.query_params:
-        query_params = "?" + "&".join([ "{}={}".format(param, value) for param, value in request.query_params.items() ])
+        query_params = "?" + "&".join(
+            [
+                f"{param}={value}"
+                for param, value in request.query_params.items()
+            ]
+        )
 
     return "[ {}:{}{} ] - {}\n\n{}".format(
         request.method,
@@ -35,7 +40,7 @@ def wrap_api_call(type, request, processor, message = None, encrypt = True, api_
         elif callable(message):
             message = message(e)
 
-        logger.error("{} API error: {}".format(type.title(), format_error(request, e)))
+        logger.error(f"{type.title()} API error: {format_error(request, e)}")
 
         if encrypt:
             return EncryptedResponse(

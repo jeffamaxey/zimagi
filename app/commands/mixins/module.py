@@ -55,7 +55,7 @@ class ModuleMixin(CommandMixin('module')):
                 if display_only:
                     template_fields[field] = "<{{{}}}>".format(field)
                 else:
-                    raise TemplateException("Field {} is required for template {}".format(field, index.name))
+                    raise TemplateException(f"Field {field} is required for template {index.name}")
 
             if field in template_fields:
                 processed_fields[field] = template_fields[field]
@@ -113,11 +113,7 @@ class ModuleMixin(CommandMixin('module')):
                     iter_data = merge_data
 
                     for index, key in enumerate(location):
-                        if (index + 1) == len(location):
-                            iter_data[key] = embed_data
-                        else:
-                            iter_data[key] = {}
-
+                        iter_data[key] = embed_data if (index + 1) == len(location) else {}
                         iter_data = iter_data[key]
 
                     file_content = oyaml.dump(deep_merge(file_data, merge_data))
@@ -160,14 +156,16 @@ class ModuleMixin(CommandMixin('module')):
 
 
     def _run_package_commands(self, index, display_only):
-        if index.commands:
-            for command in ensure_list(index.commands):
-                if isinstance(command, str):
-                    command = re.split(r'\s+', command)
+        if not index.commands:
+            return
+        for command in ensure_list(index.commands):
+            if isinstance(command, str):
+                command = re.split(r'\s+', command)
 
-                self.data('Command', " ".join(command), 'command')
-                self.notice('-' * self.display_width)
-                if not display_only:
-                    if not self.sh(command):
-                        raise TemplateException("Template package command execution failed: {}".format(command))
-            self.info('')
+            self.data('Command', " ".join(command), 'command')
+            self.notice('-' * self.display_width)
+            if not display_only and not self.sh(command):
+                raise TemplateException(
+                    f"Template package command execution failed: {command}"
+                )
+        self.info('')

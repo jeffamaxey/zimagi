@@ -15,4 +15,4 @@ class Children(Command('group.children')):
                 provider_type = parent.provider_type,
                 parent = parent
             )
-        self.success("Successfully saved group {}".format(parent.name))
+        self.success(f"Successfully saved group {parent.name}")

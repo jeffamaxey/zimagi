@@ -17,12 +17,14 @@ def task_sent_handler(sender, headers = None, body = None, **kwargs):
     from systems.commands.action import ActionCommand
     command = ActionCommand('worker')
 
-    queue = None
-    for entity in kwargs['declare']:
-        if isinstance(entity, Queue):
-            queue = entity.name
-            break
-    if queue:
+    if queue := next(
+        (
+            entity.name
+            for entity in kwargs['declare']
+            if isinstance(entity, Queue)
+        ),
+        None,
+    ):
         worker = command.get_provider('worker', settings.WORKER_PROVIDER,
             worker_type = queue,
             command_name = body[0][0],

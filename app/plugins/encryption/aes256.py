@@ -12,7 +12,7 @@ import binascii
 class Provider(BaseProvider('encryption', 'aes256')):
 
     @classmethod
-    def generate_key(self):
+    def generate_key(cls):
         return hashlib.sha256(super().generate_key().encode()).hexdigest()[::2]
 
 

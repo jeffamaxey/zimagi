@@ -25,17 +25,13 @@ class Collection(object):
 
 
     def __getitem__(self, name):
-        if name not in self.__dict__:
-            return None
-        return self.__dict__[name]
+        return None if name not in self.__dict__ else self.__dict__[name]
 
     def __getattr__(self, name):
         return self.__getitem__(name)
 
     def get(self, name, default = None):
-        if name not in self.__dict__:
-            return default
-        return self.__dict__[name]
+        return default if name not in self.__dict__ else self.__dict__[name]
 
 
     def export(self):
@@ -90,10 +86,7 @@ class RecursiveCollection(Collection):
         conversion = data
 
         if isinstance(data, (list, tuple)):
-            conversion = []
-            for value in data:
-                conversion.append(self._create_collections(value))
-
+            conversion = [self._create_collections(value) for value in data]
         elif isinstance(data, dict):
             conversion = RecursiveCollection(data)
 

@@ -13,9 +13,7 @@ class IdentifierResourceBase(BaseModel('id_resource')):
 
     def get_id_values(self):
         values = []
-        fields = list(self.get_id_fields())
-        fields.sort()
-
+        fields = sorted(self.get_id_fields())
         if not fields:
             fields = [ 'name' ]
 
@@ -23,7 +21,7 @@ class IdentifierResourceBase(BaseModel('id_resource')):
             value = getattr(self, field, None)
 
             if value is None:
-                raise DatabaseAccessError("Field {} does not exist in model {}".format(field, str(self)))
+                raise DatabaseAccessError(f"Field {field} does not exist in model {str(self)}")
             if field == 'created':
                 value = value.strftime("%Y%m%d%H%M%S%f")
 

@@ -4,6 +4,7 @@ Application settings definition
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.0/ref/settings/
 """
+
 from celery.schedules import crontab
 
 from .core import *
@@ -51,21 +52,17 @@ MIDDLEWARE = [
 DB_PACKAGE_ALL_NAME = Config.string('ZIMAGI_DB_PACKAGE_ALL_NAME', 'all')
 DATABASE_ROUTERS = ['systems.db.router.DatabaseRouter']
 
-postgres_service = MANAGER.get_service('pgbouncer')
-
-if postgres_service:
+if postgres_service := MANAGER.get_service('pgbouncer'):
     postgres_host = '127.0.0.1'
     postgres_port = postgres_service['ports']['6432/tcp']
 else:
     postgres_host = None
     postgres_port = None
 
-_postgres_host = Config.value('ZIMAGI_POSTGRES_HOST', None)
-if _postgres_host:
+if _postgres_host := Config.value('ZIMAGI_POSTGRES_HOST', None):
     postgres_host = _postgres_host
 
-_postgres_port = Config.value('ZIMAGI_POSTGRES_PORT', None)
-if _postgres_port:
+if _postgres_port := Config.value('ZIMAGI_POSTGRES_PORT', None):
     postgres_port = _postgres_port
 
 if not postgres_host or not postgres_port:
@@ -104,61 +101,35 @@ DISABLE_SERVER_SIDE_CURSORS = True
 DB_MAX_CONNECTIONS = Config.integer('ZIMAGI_DB_MAX_CONNECTIONS', 100)
 DB_LOCK = threading.Semaphore(DB_MAX_CONNECTIONS)
 
-#
-# Redis configurations
-#
-redis_service = MANAGER.get_service('redis')
-
-if redis_service:
+if redis_service := MANAGER.get_service('redis'):
     redis_host = '127.0.0.1'
     redis_port = redis_service['ports']['6379/tcp']
 else:
     redis_host = None
     redis_port = None
 
-_redis_host = Config.value('ZIMAGI_REDIS_HOST', None)
-if _redis_host:
+if _redis_host := Config.value('ZIMAGI_REDIS_HOST', None):
     redis_host = _redis_host
 
-_redis_port = Config.value('ZIMAGI_REDIS_PORT', None)
-if _redis_port:
+if _redis_port := Config.value('ZIMAGI_REDIS_PORT', None):
     redis_port = _redis_port
 
 redis_url = None
 
 if redis_host and redis_port:
     redis_protocol = Config.string('ZIMAGI_REDIS_TYPE', 'redis')
-    redis_password = Config.value('ZIMAGI_REDIS_PASSWORD')
-
-    if redis_password:
-        redis_url = "{}://:{}@{}:{}".format(
-            redis_protocol,
-            redis_password,
-            redis_host,
-            redis_port
-        )
+    if redis_password := Config.value('ZIMAGI_REDIS_PASSWORD'):
+        redis_url = f"{redis_protocol}://:{redis_password}@{redis_host}:{redis_port}"
     else:
-        redis_url = "{}://{}:{}".format(
-            redis_protocol,
-            redis_host,
-            redis_port
-        )
+        redis_url = f"{redis_protocol}://{redis_host}:{redis_port}"
 
-#
-# Process Management
-#
 if redis_url:
-    REDIS_TASK_URL = "{}/2".format(redis_url)
+    REDIS_TASK_URL = f"{redis_url}/2"
+    REDIS_MUTEX_URL = f"{redis_url}/3"
 else:
     REDIS_TASK_URL = None
     QUEUE_COMMANDS = False
 
-#
-# Database mutex locking
-#
-if redis_url:
-    REDIS_MUTEX_URL = "{}/3".format(redis_url)
-else:
     REDIS_MUTEX_URL = None
 
 MUTEX_TTL_SECONDS = Config.integer('ZIMAGI_MUTEX_TTL_SECONDS', 432000)
@@ -178,12 +149,12 @@ CACHES = {
 if redis_url and not Config.boolean('ZIMAGI_DISABLE_PAGE_CACHE', False):
     CACHES['page'] = {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "{}/1".format(redis_url),
+        "LOCATION": f"{redis_url}/1",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "IGNORE_EXCEPTIONS": True,
-            "PARSER_CLASS": "redis.connection.HiredisParser"
-        }
+            "PARSER_CLASS": "redis.connection.HiredisParser",
+        },
     }
 
 CACHE_MIDDLEWARE_ALIAS = 'page'
@@ -252,7 +223,7 @@ CELERY_BROKER_TRANSPORT_OPTIONS = {
     'master_name': 'zimagi',
     'visibility_timeout': 1800
 }
-CELERY_BROKER_URL = "{}/0".format(redis_url) if redis_url else None
+CELERY_BROKER_URL = f"{redis_url}/0" if redis_url else None
 
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_CREATE_MISSING_QUEUES = True
@@ -282,7 +253,7 @@ CELERY_BEAT_SCHEDULE = {
 #-------------------------------------------------------------------------------
 # Service specific settings
 
-service_module = importlib.import_module("services.{}.settings".format(APP_SERVICE))
+service_module = importlib.import_module(f"services.{APP_SERVICE}.settings")
 for setting in dir(service_module):
     if setting == setting.upper():
         locals()[setting] = getattr(service_module, setting)

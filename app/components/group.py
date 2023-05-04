@@ -15,9 +15,10 @@ class ProfileComponent(profile.BaseProfileComponent):
 
             children = list(children.keys())
 
-        return self.exec('group children',
-            group_name = name,
-            group_child_names = [] if not children else ensure_list(children)
+        return self.exec(
+            'group children',
+            group_name=name,
+            group_child_names=ensure_list(children) if children else [],
         )
 
     def destroy(self, name, children):

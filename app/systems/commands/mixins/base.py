@@ -25,21 +25,22 @@ class BaseMixin(object, metaclass = MetaBaseMixin):
                 flag_default = self.options.get_default(name)
 
                 if flag_default:
-                    option_label = self.success_color("option_{}".format(name))
-                    help_text = "{} <{}>".format(help_text, self.value_color('True'))
+                    option_label = self.success_color(f"option_{name}")
+                    help_text = f"{help_text} <{self.value_color('True')}>"
                 else:
-                    option_label = self.key_color("option_{}".format(name))
+                    option_label = self.key_color(f"option_{name}")
 
-                self.add_schema_field(name,
+                self.add_schema_field(
+                    name,
                     args.parse_bool(
                         self.parser,
                         name,
                         flag,
-                        "[@{}] {}".format(option_label, help_text),
-                        default = flag_default
+                        f"[@{option_label}] {help_text}",
+                        default=flag_default,
                     ),
-                    optional = True,
-                    tags = tags
+                    optional=True,
+                    tags=tags,
                 )
                 if flag_default is not None:
                     self.option_defaults[name] = flag_default
@@ -54,17 +55,17 @@ class BaseMixin(object, metaclass = MetaBaseMixin):
                 if optional:
                     variable_default = self.options.get_default(name)
                     if variable_default is not None:
-                        option_label = self.success_color("option_{}".format(name))
+                        option_label = self.success_color(f"option_{name}")
                     else:
-                        option_label = self.key_color("option_{}".format(name))
+                        option_label = self.key_color(f"option_{name}")
                         variable_default = default
 
                     if variable_default is None:
                         default_label = ''
                     else:
-                        default_label = " <{}>".format(self.value_color(variable_default))
+                        default_label = f" <{self.value_color(variable_default)}>"
 
-                    help_text = "[@{}] {}{}".format(option_label, help_text, default_label)
+                    help_text = f"[@{option_label}] {help_text}{default_label}"
 
                 if optional and isinstance(optional, (str, list, tuple)):
                     if not value_label:
@@ -102,20 +103,20 @@ class BaseMixin(object, metaclass = MetaBaseMixin):
                 if optional:
                     variable_default = self.options.get_default(name)
                     if variable_default is not None:
-                        option_label = self.success_color("option_{}".format(name))
+                        option_label = self.success_color(f"option_{name}")
                     else:
-                        option_label = self.key_color("option_{}".format(name))
+                        option_label = self.key_color(f"option_{name}")
                         variable_default = default
 
                     if variable_default is None:
                         default_label = ''
                     else:
-                        default_label = " <{}>".format(self.value_color(", ".join(data.ensure_list(variable_default))))
+                        default_label = f' <{self.value_color(", ".join(data.ensure_list(variable_default)))}>'
 
-                    help_text = "[@{}] {}{}".format(option_label, help_text, default_label)
+                    help_text = f"[@{option_label}] {help_text}{default_label}"
 
                 if optional and isinstance(optional, (str, list, tuple)):
-                    help_text = "{} (comma separated)".format(help_text)
+                    help_text = f"{help_text} (comma separated)"
 
                     if not value_label:
                         value_label = name
@@ -230,50 +231,51 @@ class BaseMixin(object, metaclass = MetaBaseMixin):
 
     def parse_scope(self, facade):
         for name in facade.scope_parents:
-            getattr(self, "parse_{}_name".format(name))("--{}".format(name.replace('_', '-')), tags = ['scope'])
+            getattr(self, f"parse_{name}_name")(
+                f"--{name.replace('_', '-')}", tags=['scope']
+            )
 
     def set_scope(self, facade, optional = False):
         filters = {}
         for name in OrderedDict.fromkeys(facade.scope_parents).keys():
-            instance_name = getattr(self, "{}_name".format(name), None)
+            instance_name = getattr(self, f"{name}_name", None)
             if optional and not instance_name:
                 name = None
 
             if name and name in facade.fields:
-                sub_facade = getattr(self, "_{}".format(
-                    facade.get_subfacade(name).name
-                ))
+                sub_facade = getattr(self, f"_{facade.get_subfacade(name).name}")
                 if facade.name != sub_facade.name:
                     self.set_scope(sub_facade, optional)
                 else:
                     sub_facade.set_scope(filters)
 
                 if instance_name:
-                    instance = self.get_instance(sub_facade, instance_name, required = not optional)
-                    if instance:
-                        filters["{}_id".format(name)] = instance.get_id()
+                    if instance := self.get_instance(
+                        sub_facade, instance_name, required=not optional
+                    ):
+                        filters[f"{name}_id"] = instance.get_id()
                     elif not optional:
-                        self.error("{} {} does not exist".format(facade.name.title(), instance_name))
+                        self.error(f"{facade.name.title()} {instance_name} does not exist")
 
         facade.set_scope(filters)
         return filters
 
     def get_scope_filters(self, instance):
         facade = instance.facade
-        filters = {}
-        for name, value in facade.get_scope_filters(instance).items():
-            filters["{}_name".format(name)] = value
-        return filters
+        return {
+            f"{name}_name": value
+            for name, value in facade.get_scope_filters(instance).items()
+        }
 
 
     def parse_relations(self, facade):
         for field_name, info in facade.get_relations().items():
-            option_name = "--{}".format(field_name.replace('_', '-'))
+            option_name = f"--{field_name.replace('_', '-')}"
 
             if info['multiple']:
-                method_name = "parse_{}_names".format(field_name)
+                method_name = f"parse_{field_name}_names"
             else:
-                method_name = "parse_{}_name".format(field_name)
+                method_name = f"parse_{field_name}_name"
 
             getattr(self, method_name)(option_name, tags = ['relation'])
 
@@ -282,29 +284,24 @@ class BaseMixin(object, metaclass = MetaBaseMixin):
         for field_name, info in facade.get_relations().items():
             base_name = info['model'].facade.name
 
-            sub_facade = getattr(self, "_{}".format(base_name), None)
-            if sub_facade:
+            if sub_facade := getattr(self, f"_{base_name}", None):
                 self.set_scope(sub_facade, True)
 
             if info['multiple']:
-                accessor_name = "{}_names".format(field_name)
+                accessor_name = f"{field_name}_names"
             else:
-                accessor_name = "{}_name".format(field_name)
+                accessor_name = f"{field_name}_name"
 
-            if getattr(self, "check_{}".format(accessor_name))():
+            if getattr(self, f"check_{accessor_name}")():
                 relations[field_name] = getattr(self, accessor_name, None)
 
         return relations
 
 
     def check_available(self, facade, name, warn = False):
-        instance = self.get_instance(facade, name, required = False)
-        if instance:
+        if instance := self.get_instance(facade, name, required=False):
             if warn:
-                self.warning("{} {} already exists".format(
-                    facade.name.title(),
-                    name
-                ))
+                self.warning(f"{facade.name.title()} {name} already exists")
             return False
         return True
 
@@ -312,10 +309,7 @@ class BaseMixin(object, metaclass = MetaBaseMixin):
         instance = self.get_instance(facade, name, required = False)
         if not instance:
             if warn:
-                self.warning("{} {} does not exist".format(
-                    facade.name.title(),
-                    name
-                ))
+                self.warning(f"{facade.name.title()} {name} does not exist")
             return False
         return True
 
@@ -324,7 +318,7 @@ class BaseMixin(object, metaclass = MetaBaseMixin):
         instance = facade.retrieve_by_id(id)
 
         if not instance and required:
-            self.error("{} {} does not exist".format(facade.name.title(), id))
+            self.error(f"{facade.name.title()} {id} does not exist")
         elif instance and instance.initialize(self):
             return instance
         return None
@@ -336,12 +330,11 @@ class BaseMixin(object, metaclass = MetaBaseMixin):
             instance = facade.retrieve(name)
 
             if not instance and required:
-                self.error("{} {} does not exist".format(facade.name.title(), name))
+                self.error(f"{facade.name.title()} {name} does not exist")
+            elif instance and instance.initialize(self):
+                self._set_cache_instance(facade, name, instance)
             else:
-                if instance and instance.initialize(self):
-                    self._set_cache_instance(facade, name, instance)
-                else:
-                    return None
+                return None
 
         return instance
 
@@ -367,10 +360,7 @@ class BaseMixin(object, metaclass = MetaBaseMixin):
         def init_instance(object):
             if isinstance(object, str):
                 cached = self._get_cache_instance(facade, object)
-                if not cached:
-                    instance = facade.retrieve(object)
-                else:
-                    instance = cached
+                instance = cached if cached else facade.retrieve(object)
             else:
                 instance = object
                 cached = self._get_cache_instance(facade, getattr(instance, facade.pk))
@@ -430,15 +420,15 @@ class BaseMixin(object, metaclass = MetaBaseMixin):
                 matches = re.search(r'^([\~\-])?([^\s\=]+)\s*(?:(\=|[^\s]*))\s*(.*)', query)
 
                 if matches:
-                    negate = True if matches.group(1) else False
-                    field = matches.group(2).strip()
+                    negate = bool(matches[1])
+                    field = matches[2].strip()
                     field_list = re.split(r'\.|__', field)
 
-                    lookup = matches.group(3)
+                    lookup = matches[3]
                     if not lookup and len(field_list) > 1:
                         lookup = field_list.pop()
 
-                    value = re.sub(r'^[\'\"]|[\'\"]$', '', matches.group(4).strip())
+                    value = re.sub(r'^[\'\"]|[\'\"]$', '', matches[4].strip())
 
                     if not lookup and not value:
                         value = field
@@ -656,9 +646,8 @@ class BaseMixin(object, metaclass = MetaBaseMixin):
         if filters is None:
             filters = {}
 
-        if dataframe:
-            if dataframe_index_field and dataframe_merge_fields:
-                return get_merged_dataframe(field_info)
+        if dataframe and dataframe_index_field and dataframe_merge_fields:
+            return get_merged_dataframe(field_info)
 
         records = get_dataframe(field_info, filters)
         return records if dataframe else records.to_dict('records')
@@ -692,10 +681,8 @@ class BaseMixin(object, metaclass = MetaBaseMixin):
         if facade.name == 'user':
             system_fields.extend(['last_login', 'password']) # User abstract model exceptions
 
-        lines = [ "fields as key value pairs", '' ]
+        lines = ["fields as key value pairs", '', "-" * 40, 'model requirements:']
 
-        lines.append("-" * 40)
-        lines.append('model requirements:')
         for name in facade.required:
             if exclude_fields and name in exclude_fields:
                 continue
@@ -710,11 +697,9 @@ class BaseMixin(object, metaclass = MetaBaseMixin):
                 if field.choices:
                     choices = [ self.value_color(x[0]) for x in field.choices ]
 
-                lines.append("    {} {}{}".format(
-                    self.warning_color(field.name),
-                    field_label,
-                    ':> ' + ", ".join(choices) if choices else ''
-                ))
+                lines.append(
+                    f"""    {self.warning_color(field.name)} {field_label}{':> ' + ", ".join(choices) if choices else ''}"""
+                )
                 if field.help_text:
                     lines.extend(('',
                         "       - {}".format(
@@ -723,9 +708,7 @@ class BaseMixin(object, metaclass = MetaBaseMixin):
                             ))
                         ),
                     ))
-        lines.append('')
-
-        lines.append('model options:')
+        lines.extend(('', 'model options:'))
         for name in facade.optional:
             if exclude_fields and name in exclude_fields:
                 continue
@@ -743,18 +726,13 @@ class BaseMixin(object, metaclass = MetaBaseMixin):
                 default = facade.get_field_default(field)
 
                 if default is not None:
-                    lines.append("    {} {} ({}){}".format(
-                        self.warning_color(field.name),
-                        field_label,
-                        self.value_color(default),
-                        ':> ' + ", ".join(choices) if choices else ''
-                    ))
+                    lines.append(
+                        f"""    {self.warning_color(field.name)} {field_label} ({self.value_color(default)}){':> ' + ", ".join(choices) if choices else ''}"""
+                    )
                 else:
-                    lines.append("    {} {} {}".format(
-                        self.warning_color(field.name),
-                        field_label,
-                        ':> ' + ", ".join(choices) if choices else ''
-                    ))
+                    lines.append(
+                        f"""    {self.warning_color(field.name)} {field_label} {':> ' + ", ".join(choices) if choices else ''}"""
+                    )
 
                 if field.help_text:
                     lines.extend(('',
@@ -769,7 +747,7 @@ class BaseMixin(object, metaclass = MetaBaseMixin):
 
 
     def _init_instance_cache(self, facade):
-        cache_variable = "_data_{}_cache".format(facade.name)
+        cache_variable = f"_data_{facade.name}_cache"
 
         if not getattr(self, cache_variable, None):
             setattr(self, cache_variable, {})

@@ -30,32 +30,24 @@ def get_id_schema_classes():
 
 def get_bool(item, key):
     value = item.get(key)
-    if isinstance(value, bool):
-        return value
-    return False
+    return value if isinstance(value, bool) else False
 
 def get_string(item, key):
     value = item.get(key)
-    if isinstance(value, str):
-        return value
-    return ''
+    return value if isinstance(value, str) else ''
 
 def get_list(item, key):
     value = item.get(key)
-    if isinstance(value, list):
-        return value
-    return []
+    return value if isinstance(value, list) else []
 
 def get_dict(item, key):
     value = item.get(key)
-    if isinstance(value, dict):
-        return value
-    return {}
+    return value if isinstance(value, dict) else {}
 
 
 def escape_key(string):
     if string.startswith('_') and string.lstrip('_') in ('type', 'meta'):
-        return '_' + string
+        return f'_{string}'
     return string
 
 
@@ -83,13 +75,13 @@ class ZimagiJSONCodec(object):
         try:
             data = load_json(bytestring.decode('utf-8'))
         except ValueError as exc:
-            raise CommandParseError("Malformed JSON. {}".format(exc))
+            raise CommandParseError(f"Malformed JSON. {exc}")
 
         document = self._convert_to_document(data, base_url)
         if isinstance(document, schema.Object):
             document = schema.Document(content = dict(document))
 
-        elif not (isinstance(document, schema.Document) or isinstance(document, schema.Error)):
+        elif not (isinstance(document, (schema.Document, schema.Error))):
             raise CommandParseError('Top level node should be a document or error.')
 
         return document
@@ -111,9 +103,7 @@ class ZimagiJSONCodec(object):
             }
 
         data_str = dump_json(self._convert_to_data(document), **kwargs)
-        if isinstance(data_str, str):
-            return data_str.encode('utf-8')
-        return data_str
+        return data_str.encode('utf-8') if isinstance(data_str, str) else data_str
 
 
     def _convert_to_document(self, data, base_url = None):
@@ -208,8 +198,7 @@ class ZimagiJSONCodec(object):
         elif isinstance(node, schema.Link):
             ret = OrderedDict()
             ret['_type'] = 'link'
-            url = self._get_relative_url(base_url, node.url)
-            if url:
+            if url := self._get_relative_url(base_url, node.url):
                 ret['url'] = url
             if node.action:
                 ret['action'] = node.action
@@ -252,8 +241,7 @@ class ZimagiJSONCodec(object):
 
 
     def _get_schema(self, item, key):
-        schema_data = get_dict(item, key)
-        if schema_data:
+        if schema_data := get_dict(item, key):
             return self._decode_schema(schema_data)
         return None
 
@@ -288,8 +276,8 @@ class ZimagiJSONCodec(object):
         if url == base_url:
             return ''
 
-        base_prefix = "{}://{}".format(*urllib.parse.urlparse(base_url or '')[0:2])
-        url_prefix = "{}://{}".format(*urllib.parse.urlparse(url or '')[0:2])
+        base_prefix = "{}://{}".format(*urllib.parse.urlparse(base_url or '')[:2])
+        url_prefix = "{}://{}".format(*urllib.parse.urlparse(url or '')[:2])
 
         if base_prefix == url_prefix and url_prefix != '://':
             return url[len(url_prefix):]

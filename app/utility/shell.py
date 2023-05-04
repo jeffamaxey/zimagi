@@ -26,7 +26,7 @@ class Shell(object):
                 if isinstance(input, (list, tuple)):
                     input = [ settings.USER_PASSWORD, *flatten(input) ]
                 else:
-                    input = "{}\n{}".format(settings.USER_PASSWORD, input)
+                    input = f"{settings.USER_PASSWORD}\n{input}"
             else:
                 input = settings.USER_PASSWORD
 
@@ -52,7 +52,9 @@ class Shell(object):
 
             process.wait()
         finally:
-            logger.debug("Terminating shell command {} with status {}".format(' '.join(command_args), process.returncode))
+            logger.debug(
+                f"Terminating shell command {' '.join(command_args)} with status {process.returncode}"
+            )
             process.terminate()
 
         return process.returncode == 0

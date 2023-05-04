@@ -59,7 +59,7 @@ class ModelFacade(terminal.TerminalMixin):
         self.annotations = {}
 
         for field in self.field_instances:
-            if field.name != self.pk and field.name != self.key():
+            if field.name not in [self.pk, self.key()]:
                 if (not field.null
                     and field.blank == False
                     and field.default == fields.NOT_PROVIDED):
@@ -96,21 +96,15 @@ class ModelFacade(terminal.TerminalMixin):
     @lru_cache(maxsize = None)
     def field_instances(self):
         fields = list(self.meta.fields)
-        for field in self.dynamic_fields:
-            fields.append(Field(
-                name = field,
-                verbose_name = field.replace('_', ' '),
-                editable = False
-            ))
+        fields.extend(
+            Field(name=field, verbose_name=field.replace('_', ' '), editable=False)
+            for field in self.dynamic_fields
+        )
         return fields
 
     @property
     def system_field_instances(self):
-        fields = []
-        for field in self.field_instances:
-            if not field.editable:
-                fields.append(field)
-        return fields
+        return [field for field in self.field_instances if not field.editable]
 
     @property
     def dynamic_fields(self):
@@ -132,9 +126,7 @@ class ModelFacade(terminal.TerminalMixin):
         return isinstance(field, (RelatedField, ForeignObjectRel))
 
     def get_field_default(self, field):
-        if field.default == NOT_PROVIDED:
-            return None
-        return field.default
+        return None if field.default == NOT_PROVIDED else field.default
 
 
     def get_field_type_index(self):
@@ -296,8 +288,7 @@ class ModelFacade(terminal.TerminalMixin):
         filters = {}
 
         for name in self.scope_fields:
-            scope = getattr(instance, name, None)
-            if scope:
+            if scope := getattr(instance, name, None):
                 filters[name] = scope.name
                 for name, value in scope.facade.get_scope_filters(scope).items():
                     filters[name] = value
@@ -305,7 +296,7 @@ class ModelFacade(terminal.TerminalMixin):
 
     def _check_scope(self, filters):
         for filter, value in self.get_scope().items():
-            if not filter in filters:
+            if filter not in filters:
                 filters[filter] = value
 
 
@@ -319,15 +310,17 @@ class ModelFacade(terminal.TerminalMixin):
             for field in fields:
                 field = model_fields[field.replace('_id', '')]
 
-                if isinstance(field, ForeignKey):
-                    if self.model == field.related_model:
-                        scope_process = model.facade.meta.scope_process
+                if (
+                    isinstance(field, ForeignKey)
+                    and self.model == field.related_model
+                ):
+                    scope_process = model.facade.meta.scope_process
 
-                        if process == 'all' or process == scope_process:
-                            children.append(model.facade.name)
-                            if recursive:
-                                children.extend(model.facade.get_children(True, process))
-                            break
+                    if process in ['all', scope_process]:
+                        children.append(model.facade.name)
+                        if recursive:
+                            children.extend(model.facade.get_children(True, process))
+                        break
         return children
 
     @lru_cache(maxsize = None)
@@ -335,58 +328,65 @@ class ModelFacade(terminal.TerminalMixin):
         scope_fields = self.scope_fields
         relations = {}
         for field in self.meta.get_fields():
-            if field.name not in scope_fields and isinstance(field, (ForeignKey, ManyToManyField, OneToOneField)):
-                if not field.name.endswith('_ptr'):
-                    if isinstance(field, ManyToManyField):
-                        multiple = True
-                    elif isinstance(field, (ForeignKey, OneToOneField)):
-                        multiple = False
+            if (
+                field.name not in scope_fields
+                and isinstance(field, (ForeignKey, ManyToManyField, OneToOneField))
+                and not field.name.endswith('_ptr')
+            ):
+                if isinstance(field, ManyToManyField):
+                    multiple = True
+                elif isinstance(field, (ForeignKey, OneToOneField)):
+                    multiple = False
 
-                    relations[field.name] = {
-                        'name': field.name,
-                        'label': "{}{}".format(field.name.replace('_', ' ').title(), ' (M)' if multiple else ''),
-                        'model': field.related_model,
-                        'field': field,
-                        'multiple': multiple
-                    }
+                relations[field.name] = {
+                    'name': field.name,
+                    'label': f"{field.name.replace('_', ' ').title()}{' (M)' if multiple else ''}",
+                    'model': field.related_model,
+                    'field': field,
+                    'multiple': multiple,
+                }
         return relations
 
     @lru_cache(maxsize = None)
     def get_reverse_relations(self):
         relations = {}
         for field in self.meta.get_fields():
-            if field.auto_created and not field.concrete:
-                if self.model != field.related_model:
-                    model_meta = field.related_model._meta
-                    name = model_meta.verbose_name.replace(' ', '_')
+            if (
+                field.auto_created
+                and not field.concrete
+                and self.model != field.related_model
+            ):
+                model_meta = field.related_model._meta
+                name = model_meta.verbose_name.replace(' ', '_')
 
-                    if isinstance(field, OneToOneRel):
-                        multiple = False
-                    elif isinstance(field, (ManyToOneRel, ManyToManyRel)):
-                        multiple = True
+                if isinstance(field, OneToOneRel):
+                    multiple = False
+                elif isinstance(field, (ManyToOneRel, ManyToManyRel)):
+                    multiple = True
 
-                    if name not in ('log', 'state'):
-                        relations[field.name] = {
-                            'name': field.name,
-                            'label': "{}{}".format(field.name.replace('_', ' ').title(), ' (M)' if multiple else ''),
-                            'model': field.related_model,
-                            'field': field,
-                            'multiple': multiple
-                        }
+                if name not in ('log', 'state'):
+                    relations[field.name] = {
+                        'name': field.name,
+                        'label': f"{field.name.replace('_', ' ').title()}{' (M)' if multiple else ''}",
+                        'model': field.related_model,
+                        'field': field,
+                        'multiple': multiple,
+                    }
         return relations
 
     @lru_cache(maxsize = None)
     def get_referenced_relations(self):
-        scope_relations = {}
-        for field in self.meta.get_fields():
-            if field.name in self.scope_fields:
-                scope_relations[field.name] = {
-                    'name': field.name,
-                    'label': field.name.replace('_', ' ').title(),
-                    'model': field.related_model,
-                    'field': field,
-                    'multiple': False
-                }
+        scope_relations = {
+            field.name: {
+                'name': field.name,
+                'label': field.name.replace('_', ' ').title(),
+                'model': field.related_model,
+                'field': field,
+                'multiple': False,
+            }
+            for field in self.meta.get_fields()
+            if field.name in self.scope_fields
+        }
         return {
             **scope_relations,
             **self.get_relations()
@@ -436,13 +436,11 @@ class ModelFacade(terminal.TerminalMixin):
         }
 
     def get_aggregators(self, type):
-        aggregators = []
-
-        for function, info in self.aggregator_map.items():
-            if type in info['types']:
-                aggregators.append(function)
-
-        return aggregators
+        return [
+            function
+            for function, info in self.aggregator_map.items()
+            if type in info['types']
+        ]
 
 
     def set_annotations(self, **annotations):
@@ -481,11 +479,7 @@ class ModelFacade(terminal.TerminalMixin):
         if self.annotations:
             manager = manager.annotate(**self.annotations)
 
-        if not filters:
-            queryset = manager.all()
-        else:
-            queryset = manager.filter(**filters)
-
+        queryset = manager.filter(**filters) if filters else manager.all()
         if self.order:
             queryset = queryset.order_by(*self.order)
 
@@ -504,11 +498,7 @@ class ModelFacade(terminal.TerminalMixin):
         self._check_scope(filters)
 
         manager = self.model.objects
-        if not filters:
-            queryset = manager.all()
-        else:
-            queryset = manager.exclude(**filters)
-
+        queryset = manager.exclude(**filters) if filters else manager.all()
         if self.order:
             queryset = queryset.order_by(*self.order)
 
@@ -573,11 +563,7 @@ class ModelFacade(terminal.TerminalMixin):
             queryset = query.get_queryset(instance, relation)
 
             if queryset:
-                if filters:
-                    queryset = queryset.filter(**filters).distinct()
-                else:
-                    queryset = queryset.all()
-
+                queryset = queryset.filter(**filters).distinct() if filters else queryset.all()
         return queryset
 
 
@@ -603,7 +589,7 @@ class ModelFacade(terminal.TerminalMixin):
             return None
 
         except self.model.MultipleObjectsReturned:
-            raise ScopeError("Scope missing from {} {} retrieval".format(self.name, key))
+            raise ScopeError(f"Scope missing from {self.name} {key} retrieval")
 
         return data
 
@@ -659,24 +645,22 @@ class ModelFacade(terminal.TerminalMixin):
         return (instance, created)
 
     def delete(self, key, **filters):
-        if key not in data.ensure_list(self.keep(key)):
-            filters[self.key()] = key
-            return self.clear(**filters)
-        else:
-            raise RestrictedError("Removal of {} {} is restricted".format(self.model.__name__.lower(), key))
+        if key in data.ensure_list(self.keep(key)):
+            raise RestrictedError(
+                f"Removal of {self.model.__name__.lower()} {key} is restricted"
+            )
+        filters[self.key()] = key
+        return self.clear(**filters)
 
     def clear(self, **filters):
         queryset = self.query(**filters)
-        keep_list = self.keep()
-        if keep_list:
-            queryset = queryset.exclude(**{
-                "{}__in".format(self.key()): data.ensure_list(keep_list)
-            })
+        if keep_list := self.keep():
+            queryset = queryset.exclude(
+                **{f"{self.key()}__in": data.ensure_list(keep_list)}
+            )
 
         deleted, del_per_type = queryset.delete()
-        if deleted:
-            return True
-        return False
+        return bool(deleted)
 
 
     def get_field_created_display(self, instance, value, short):

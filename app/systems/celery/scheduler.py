@@ -58,7 +58,7 @@ class CeleryScheduler(DatabaseScheduler):
                     heappush = heappush
                 )
         except MutexError:
-            logger.warning("Scheduler could not obtain lock for {}".format(self.lock_id))
+            logger.warning(f"Scheduler could not obtain lock for {self.lock_id}")
 
         except MutexTimeoutError:
             logger.warning("Scheduler sync completed but the lock timed out")

@@ -11,6 +11,8 @@ class Provider(BaseProvider('validator', 'date_time')):
         try:
             datetime.datetime.strptime(str(value), self.field_format)
         except ValueError as e:
-            self.warning("Value {} is not a valid date time according to pattern: {}".format(value, self.field_format))
+            self.warning(
+                f"Value {value} is not a valid date time according to pattern: {self.field_format}"
+            )
             return False
         return True

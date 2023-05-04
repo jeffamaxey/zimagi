@@ -13,6 +13,4 @@ class Provider(BaseProvider('formatter', 'number')):
         except Exception:
             return None
 
-        if value is None or math.isnan(value):
-            return None
-        return number(value)
+        return None if value is None or math.isnan(value) else number(value)

@@ -8,11 +8,10 @@ from utility.text import wrap
 class Help(Command('help')):
 
     def exec(self):
-        command = self.command_name
-        if not command:
-            self.render_overview()
-        else:
+        if command := self.command_name:
             self.render_command(command)
+        else:
+            self.render_overview()
 
 
     def render_overview(self):

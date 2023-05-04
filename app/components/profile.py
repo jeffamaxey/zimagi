@@ -22,7 +22,7 @@ class ProfileComponent(profile.BaseProfileComponent):
 
         profile = self.pop_value('_profile', config)
         if not profile:
-            self.command.error("Profile {} requires '_profile' field".format(name))
+            self.command.error(f"Profile {name} requires '_profile' field")
 
         queue = self.pop_value('_queue', config) if '_queue' in config else settings.QUEUE_COMMANDS
         module = self.pop_value('_module', config)
@@ -52,19 +52,18 @@ class ProfileComponent(profile.BaseProfileComponent):
                     '_wait_keys': wait_keys
                 }
                 if settings.QUEUE_COMMANDS:
-                    options['push_queue'] = queue if not display_only else False
+                    options['push_queue'] = False if display_only else queue
                 try:
                     log_key = self.exec('run', **options)
 
                 except (ConnectTimeout, ConnectionError) as e:
-                    if display_only:
-                        options.pop('environment_host', None)
-                        options.pop('push_queue', None)
-                        self.command.warning("Displaying local profile for: {}\n".format(name))
-                        log_key = self.exec('run', **options)
-                    else:
+                    if not display_only:
                         raise e
 
+                    options.pop('environment_host', None)
+                    options.pop('push_queue', None)
+                    self.command.warning(f"Displaying local profile for: {name}\n")
+                    log_key = self.exec('run', **options)
             self.command.set_state(state_name, True)
         return log_key if queue else None
 
@@ -74,7 +73,7 @@ class ProfileComponent(profile.BaseProfileComponent):
         host = self.pop_value('_host', config)
         profile = self.pop_value('_profile', config)
         if not profile:
-            self.command.error("Profile {} requires '_profile' field".format(name))
+            self.command.error(f"Profile {name} requires '_profile' field")
 
         queue = self.pop_value('_queue', config) if '_queue' in config else settings.QUEUE_COMMANDS
         module = self.pop_value('_module', config)
@@ -101,16 +100,16 @@ class ProfileComponent(profile.BaseProfileComponent):
                 "_wait_keys": wait_keys
             }
             if settings.QUEUE_COMMANDS:
-                options['push_queue'] = queue if not display_only else False
+                options['push_queue'] = False if display_only else queue
             try:
                 log_key = self.exec('destroy', **options)
 
             except (ConnectTimeout, ConnectionError):
-                self.command.warning("Remote host does not exist for: {}".format(name))
+                self.command.warning(f"Remote host does not exist for: {name}")
 
         self.command.delete_state(self.state_name(module, profile))
         return log_key if queue else None
 
 
     def state_name(self, module, profile):
-        return "profile-{}-{}".format(module, profile)
+        return f"profile-{module}-{profile}"

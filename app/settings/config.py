@@ -90,10 +90,9 @@ class Config(object):
 
     @classmethod
     def save(cls, path, data):
-        statements = []
-        for variable, value in data.items():
-            statements.append('{}="{}"'.format(variable.upper(), value))
-
+        statements = [
+            f'{variable.upper()}="{value}"' for variable, value in data.items()
+        ]
         save_file(path, "\n".join(statements))
 
     @classmethod
@@ -103,4 +102,4 @@ class Config(object):
 
     @classmethod
     def variable(cls, scope, name):
-        return "{}_{}".format(scope.upper(), name.upper())
+        return f"{scope.upper()}_{name.upper()}"

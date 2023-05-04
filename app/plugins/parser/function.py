@@ -15,11 +15,11 @@ class Provider(BaseProvider('parser', 'function')):
             return value
 
         standalone_function = re.search(self.function_pattern, value)
-        if standalone_function and len(standalone_function.group(0)) == len(value):
+        if standalone_function and len(standalone_function[0]) == len(value):
             value = self.exec_function(value, config)
         else:
             for ref_match in re.finditer(self.function_value_pattern, value):
-                function_value = self.exec_function("#{}".format(ref_match.group(1)), config)
+                function_value = self.exec_function(f"#{ref_match.group(1)}", config)
                 if isinstance(function_value, (list, tuple)):
                     function_value = ",".join(function_value)
                 elif isinstance(function_value, dict):
@@ -37,13 +37,13 @@ class Provider(BaseProvider('parser', 'function')):
             config.function_suppress = re.compile(config.function_suppress)
 
         if function_match:
-            function_variable = function_match.group(1)
-            function_name = function_match.group(2)
+            function_variable = function_match[1]
+            function_name = function_match[2]
             function_parameters = []
             function_options = {}
 
-            if function_match.group(3):
-                for parameter in re.split(r'\s*\,\s*', function_match.group(3)):
+            if function_match[3]:
+                for parameter in re.split(r'\s*\,\s*', function_match[3]):
                     parameter = parameter.strip()
                     option_components = parameter.split('=')
 
@@ -78,15 +78,15 @@ class Provider(BaseProvider('parser', 'function')):
                 if function_options:
                     parameter_str = ''
                     if function_parameters:
-                        parameter_str = "{}, ".format(", ".join(function_parameters))
+                        parameter_str = f'{", ".join(function_parameters)}, '
 
                     option_str = []
                     for name, value in function_options.items():
-                        option_str.append("{} = {}".format(name, value))
+                        option_str.append(f"{name} = {value}")
                     option_str = ", ".join(option_str)
 
-                    return "#{}({}{})".format(function_name, parameter_str, option_str)
-                return "#{}({})".format(function_name, ", ".join(function_parameters))
+                    return f"#{function_name}({parameter_str}{option_str})"
+                return f'#{function_name}({", ".join(function_parameters)})'
 
         # Not found, assume desired
         return value

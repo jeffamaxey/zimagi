@@ -79,11 +79,7 @@ class Client(client.BaseAPIClient):
 
     def get_options(self, action):
         link = self._lookup(self._normalize_action(action))
-        options = {}
-
-        for field in link.fields:
-            options[field.name] = field
-        return options
+        return {field.name: field for field in link.fields}
 
 
     def execute(self, action, **options):
@@ -102,7 +98,9 @@ class Client(client.BaseAPIClient):
         try:
             return self.data_types.get(data_type, {}).get(op, None)
         except Exception:
-            raise exceptions.ClientError("There is no action for data type {} operation {}".format(data_type, op))
+            raise exceptions.ClientError(
+                f"There is no action for data type {data_type} operation {op}"
+            )
 
 
     def _execute_type_operation(self, data_type, op, options):
@@ -113,15 +111,18 @@ class Client(client.BaseAPIClient):
 
     def _execute_key_operation(self, data_type, op, key, options):
         action = self._get_resource_action(data_type, op)
-        key_field = None
-
-        for name, info in self.get_options(action).items():
-            if info.required and 'key' in info.tags:
-                key_field = name
-                break
-
+        key_field = next(
+            (
+                name
+                for name, info in self.get_options(action).items()
+                if info.required and 'key' in info.tags
+            ),
+            None,
+        )
         if key_field is None:
-            raise exceptions.ClientError("There is no key field for {} in available options".format(data_type))
+            raise exceptions.ClientError(
+                f"There is no key field for {data_type} in available options"
+            )
 
         return self.execute(action, **{
             **options,
@@ -150,7 +151,9 @@ class Client(client.BaseAPIClient):
                 fields_field = name
 
         if key_field is None:
-            raise exceptions.ClientError("There is no key field for {} in available options".format(data_type))
+            raise exceptions.ClientError(
+                f"There is no key field for {data_type} in available options"
+            )
 
         options = {
             **options,
@@ -236,31 +239,22 @@ class Client(client.BaseAPIClient):
                 found = False
 
         if not found or not isinstance(node, schema.Link):
-            related_actions = []
-            for other_action in self.actions:
-                if action in other_action:
-                    related_actions.append(other_action)
-
-            raise exceptions.ParseError("Command {} does not exist.  Try one of: {}".format(
-                action,
-                ", ".join(related_actions)
-            ))
+            related_actions = [
+                other_action
+                for other_action in self.actions
+                if action in other_action
+            ]
+            raise exceptions.ParseError(
+                f'Command {action} does not exist.  Try one of: {", ".join(related_actions)}'
+            )
         return node
 
     def _validate(self, link, options):
         provided = set(options.keys())
-        required = set([
-            field.name for field in link.fields if field.required
-        ])
-        optional = set([
-            field.name for field in link.fields if not field.required
-        ])
-        errors = {}
-
+        required = {field.name for field in link.fields if field.required}
+        optional = {field.name for field in link.fields if not field.required}
         missing = required - provided
-        for item in missing:
-            errors[item] = 'Parameter is required'
-
+        errors = {item: 'Parameter is required' for item in missing}
         unexpected = provided - (optional | required)
         for item in unexpected:
             errors[item] = 'Unknown parameter'

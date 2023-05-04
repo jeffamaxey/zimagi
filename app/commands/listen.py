@@ -10,10 +10,11 @@ class Listen(Command('listen')):
 
     def exec(self):
         if not self.check_channel_permission():
-            self.error("You do not have permission to access the {} channel".format(self.communication_channel))
+            self.error(
+                f"You do not have permission to access the {self.communication_channel} channel"
+            )
 
-        connection = self.manager.task_connection()
-        if connection:
+        if connection := self.manager.task_connection():
             subscription = connection.pubsub(ignore_subscribe_messages = True)
             try:
                 subscription.subscribe(channel_communication_key(self.communication_channel))
@@ -24,8 +25,7 @@ class Listen(Command('listen')):
                 self.data('Listening for messages on channel', self.communication_channel)
                 self.info('')
                 while not self.disconnected:
-                    message = subscription.get_message()
-                    if message:
+                    if message := subscription.get_message():
                         if message['type'] == 'message':
                             self.data(Time().now_string, normalize_value(message['data'], parse_json = True), 'message')
                             start_time = time.time()
@@ -34,6 +34,8 @@ class Listen(Command('listen')):
                     current_time = time.time()
 
                     if self.communication_timeout and ((current_time - start_time) > self.communication_timeout):
-                        self.error("Listener timed out without any messages after {} seconds".format(self.communication_timeout))
+                        self.error(
+                            f"Listener timed out without any messages after {self.communication_timeout} seconds"
+                        )
             finally:
                 subscription.close()

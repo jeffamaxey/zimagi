@@ -15,8 +15,10 @@ class Get(Command('log.get')):
         ], 'data')
 
         parameter_table = [[self.key_color("Parameter"), self.key_color("Value")]]
-        for name, value in self.log.config.items():
-            parameter_table.append([self.key_color(name), value])
+        parameter_table.extend(
+            [self.key_color(name), value]
+            for name, value in self.log.config.items()
+        )
         self.table(parameter_table, 'parameters')
 
         self.info("\nCommand Messages:\n")
@@ -33,9 +35,9 @@ class Get(Command('log.get')):
                 log = self._log.retrieve(self.log_name)
                 if not log.running():
                     if log.success():
-                        self.success("Command '{}' completed successfully".format(log.command))
+                        self.success(f"Command '{log.command}' completed successfully")
                     else:
-                        self.warning("Command '{}' completed with errors".format(log.command))
+                        self.warning(f"Command '{log.command}' completed with errors")
                     break
 
                 self.sleep(self.poll_interval)

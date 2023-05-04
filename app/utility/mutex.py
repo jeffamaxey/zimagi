@@ -14,10 +14,10 @@ logger = logging.getLogger(__name__)
 
 
 def mutex_lock_key(lock_id):
-    return "lock:{}".format(lock_id)
+    return f"lock:{lock_id}"
 
 def mutex_state_key(key):
-    return "state:{}".format(key)
+    return f"state:{key}"
 
 
 class MutexError(Exception):
@@ -76,36 +76,38 @@ class check_mutex(BaseMutex):
 
 
     def __enter__(self):
-        lock_error_message = "Could not acquire lock: {}".format(self.lock_id)
+        lock_error_message = f"Could not acquire lock: {self.lock_id}"
 
         if self.redis_lock:
             with self.thread_lock:
                 if not self.redis_lock.acquire():
                     raise MutexError(lock_error_message)
-        else:
-            if not self.thread_lock.acquire(blocking = False):
-                raise MutexError(lock_error_message)
+        elif not self.thread_lock.acquire(blocking = False):
+            raise MutexError(lock_error_message)
 
         self.acquired = True
         settings.MANAGER.index.add_lock(self.lock_id)
 
     def __exit__(self, *args):
-        if self.acquired or self.force_remove:
-            if self.redis_lock:
-                with self.thread_lock:
-                    try:
-                        try:
-                            self.redis_lock.release()
-                        except redis.lock.LockError:
-                            pass
-
-                    except redis.exceptions.LockNotOwnedError:
-                        raise MutexTimeoutError("Lock {} expired before function completed".format(self.lock_id))
-            else:
+        if not self.acquired and not self.force_remove:
+            return
+        if self.redis_lock:
+            with self.thread_lock:
                 try:
-                    self.thread_lock.release()
-                except RuntimeError:
-                    pass
+                    try:
+                        self.redis_lock.release()
+                    except redis.lock.LockError:
+                        pass
+
+                except redis.exceptions.LockNotOwnedError:
+                    raise MutexTimeoutError(
+                        f"Lock {self.lock_id} expired before function completed"
+                    )
+        else:
+            try:
+                self.thread_lock.release()
+            except RuntimeError:
+                pass
 
 
 class Mutex(BaseMutex):

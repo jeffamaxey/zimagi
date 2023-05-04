@@ -9,7 +9,7 @@ import os
 class IndexerComponentMixin(object):
 
     def load_component(self, profile, name):
-        component_class = "components.{}.ProfileComponent".format(name)
+        component_class = f"components.{name}.ProfileComponent"
         return import_string(component_class)(name, profile)
 
     def load_components(self, profile):
@@ -34,8 +34,9 @@ class IndexerComponentMixin(object):
         component_names = []
 
         for priority, component_list in sorted(component_map.items()):
-            for component in component_list:
-                if not filter_method or getattr(component, filter_method)():
-                    component_names.append(component.name)
-
+            component_names.extend(
+                component.name
+                for component in component_list
+                if not filter_method or getattr(component, filter_method)()
+            )
         return component_names

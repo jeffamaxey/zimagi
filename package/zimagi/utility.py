@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_service_url(host, port):
-    return "https://{}:{}/".format(host, port)
+    return f"https://{host}:{port}/"
 
 
 def wrap_api_call(type, path, processor, params = None):
@@ -22,7 +22,7 @@ def wrap_api_call(type, path, processor, params = None):
         return processor()
 
     except Exception as error:
-        logger.debug("{} API error: {}".format(type.title(), format_error(path, error, params)))
+        logger.debug(f"{type.title()} API error: {format_error(path, error, params)}")
         raise error
 
 
@@ -91,7 +91,7 @@ def format_response_error(response, cipher = None):
     except Exception as error:
         error_message = message
 
-    return "Error {}: {}: {}".format(response.status_code, response.reason, error_message)
+    return f"Error {response.status_code}: {response.reason}: {error_message}"
 
 
 def format_table(data, prefix = None):
@@ -99,8 +99,7 @@ def format_table(data, prefix = None):
     prefixed_rows = []
 
     if prefix:
-        for row in table_rows:
-            prefixed_rows.append("{}{}".format(prefix, row))
+        prefixed_rows.extend(f"{prefix}{row}" for row in table_rows)
     else:
         prefixed_rows = table_rows
 

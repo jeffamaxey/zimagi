@@ -139,7 +139,7 @@ class BasePlugin(object):
             name = requirement['name']
 
             if name not in config:
-                error_message = "Configuration {} required for plugin provider {} {}".format(name, self.provider_type, self.name)
+                error_message = f"Configuration {name} required for plugin provider {self.provider_type} {self.name}"
                 if self.command:
                     self.command.error(error_message)
                 else:
@@ -176,8 +176,7 @@ class BasePlugin(object):
         schema = self.provider_schema(type)
         fields = []
         for field_type, field_data in schema.items():
-            for field_info in field_data:
-                fields.append(field_info['name'])
+            fields.extend(field_info['name'] for field_info in field_data)
         return fields
 
 
@@ -193,13 +192,19 @@ class BasePlugin(object):
             if config_value is not None:
                 self.config[name] = config_value
             elif self.create_op:
-                self.errors.append("Field '{}' required when adding {} instances".format(name, self.name))
+                self.errors.append(
+                    f"Field '{name}' required when adding {self.name} instances"
+                )
 
         if name in self.config and self.config[name] is not None:
             self.config[name] = self.parse_value(type, self.config[name])
 
         if self.create_op and callback and callable(callback):
-            callback_args = [callback_args] if not isinstance(callback_args, (list, tuple)) else callback_args
+            callback_args = (
+                callback_args
+                if isinstance(callback_args, (list, tuple))
+                else [callback_args]
+            )
             callback(name, self.config[name], self.errors, *callback_args)
 
     def option(self, type, name, default = None, callback = None, callback_args = None, help = None, config_name = None):
@@ -222,7 +227,11 @@ class BasePlugin(object):
             self.config[name] = self.parse_value(type, self.config[name])
 
         if process and callback and callable(callback):
-            callback_args = [callback_args] if not isinstance(callback_args, (list, tuple)) else callback_args
+            callback_args = (
+                callback_args
+                if isinstance(callback_args, (list, tuple))
+                else [callback_args]
+            )
             callback(name, self.config[name], self.errors, *callback_args)
 
     def parse_value(self, type, value):
@@ -318,22 +327,21 @@ class BasePlugin(object):
 
 
     def run_list(self, items, callback):
-        if not self.command:
-            return None
-        return self.command.run_list(items, callback)
+        return self.command.run_list(items, callback) if self.command else None
 
     def run_exclusive(self, lock_id, callback, error_on_locked = False, timeout = 600, interval = 2):
-        if not self.command:
-            return None
-        return self.command.run_exclusive(lock_id, callback,
-            error_on_locked = error_on_locked,
-            timeout = timeout,
-            interval = interval
+        return (
+            self.command.run_exclusive(
+                lock_id,
+                callback,
+                error_on_locked=error_on_locked,
+                timeout=timeout,
+                interval=interval,
+            )
+            if self.command
+            else None
         )
 
 
     def _color_text(self, type, text):
-        if self.command:
-            return getattr(self.command, "{}_color".format(type))(text)
-        else:
-            return text
+        return getattr(self.command, f"{type}_color")(text) if self.command else text

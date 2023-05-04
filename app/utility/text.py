@@ -20,8 +20,8 @@ class Template(string.Template):
             if named is not None:
                 try:
                     variable_match = re.match(self.variable_pattern, named)
-                    variable = variable_match.group(1)
-                    default = variable_match.group(2)
+                    variable = variable_match[1]
+                    default = variable_match[2]
                     return str(variables[variable.strip()])
 
                 except KeyError:
@@ -46,27 +46,24 @@ def split_paragraphs(text):
 def wrap(text, width, init_indent = '', init_style = None, indent = '', style = None):
     wrapper = TextWrapper(width = width)
     lines = wrapper.wrap(text)
-    count = len(lines)
-
-    if count:
+    if count := len(lines):
         header = True
         content = init_style(lines[0]) if init_style else lines[0]
-        lines[0] = "{}{}".format(init_indent, content)
+        lines[0] = f"{init_indent}{content}"
 
         if count > 1:
             for index in range(1, len(lines)):
                 if header and lines[index] == '':
                     header = False
                     content = lines[index]
+                elif header:
+                    content = init_style(lines[index]) if init_style else lines[index]
                 else:
-                    if header:
-                        content = init_style(lines[index]) if init_style else lines[index]
-                    else:
-                        content = style(lines[index]) if style else lines[index]
+                    content = style(lines[index]) if style else lines[index]
 
-                lines[index] = "{}{}".format(indent, content)
+                lines[index] = f"{indent}{content}"
 
-        lines[-1] = "{}\n".format(lines[-1])
+        lines[-1] = f"{lines[-1]}\n"
 
     return lines
 

@@ -59,7 +59,7 @@ class Message(object):
         return utility.dump_json(self.render())
 
     def format(self, debug = False, width = None):
-        return "{}{}".format(self.prefix, self.message)
+        return f"{self.prefix}{self.message}"
 
     def display(self, debug = False, width = None):
         if not self.silent:
@@ -91,7 +91,7 @@ class DataMessage(Message):
         return result
 
     def format(self, debug = False, width = None):
-        return "{}{}: {}".format(self.prefix, self.message, self.data)
+        return f"{self.prefix}{self.message}: {self.data}"
 
 
 class InfoMessage(Message):
@@ -136,12 +136,8 @@ class ErrorMessage(Message):
         if debug:
             traceback = [ item.strip() for item in self.traceback ]
             traceback_message = "\n".join(traceback)
-            return "\n{}** {}\n\n> {}\n".format(
-                self.prefix,
-                self.message,
-                traceback_message
-            )
-        return "{}** {}".format(self.prefix, self.message)
+            return f"\n{self.prefix}** {self.message}\n\n> {traceback_message}\n"
+        return f"{self.prefix}** {self.message}"
 
     def display(self, debug = False, width = None):
         if not self.silent and self.message:

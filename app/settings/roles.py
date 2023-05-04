@@ -18,7 +18,7 @@ class MetaRoles(type):
         if name in self.index:
             return name
         else:
-            raise RoleAccessError("Role {} does not exist".format(name))
+            raise RoleAccessError(f"Role {name} does not exist")
 
 
     def get_index(self):

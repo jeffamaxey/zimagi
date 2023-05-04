@@ -10,7 +10,7 @@ class Provider(BaseProvider('task', 'script')):
         script_path = self.get_path(self.field_script)
 
         if not os.path.exists(script_path):
-            self.command.error("Script task provider file {} does not exist".format(script_path))
+            self.command.error(f"Script task provider file {script_path} does not exist")
 
         env = self._env_vars(params)
         stdin = params.pop('input', self.field_input)

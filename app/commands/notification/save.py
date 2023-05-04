@@ -10,11 +10,9 @@ class Save(Command('notification.save')):
         for group in self.notify_groups:
             if self.notify_failure:
                 instance.failure_groups.get_or_create(group = group)
-                self.success("Group {} subscribed to {} failure notifications".format(
-                    group.name, command
-                ))
+                self.success(
+                    f"Group {group.name} subscribed to {command} failure notifications"
+                )
             else:
                 instance.groups.get_or_create(group = group)
-                self.success("Group {} subscribed to {} notifications".format(
-                    group.name, command
-                ))
+                self.success(f"Group {group.name} subscribed to {command} notifications")

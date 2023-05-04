@@ -32,7 +32,7 @@ class ManagerRuntimeMixin(object):
                     if os.path.isfile(script_path):
                         with temp_dir() as temp:
                             if display:
-                                command.info("Executing script: {}".format(script_path))
+                                command.info(f"Executing script: {script_path}")
 
                             if not command.sh([ script_path ],
                                 cwd = temp.base_path,
@@ -40,7 +40,7 @@ class ManagerRuntimeMixin(object):
                                 display = display,
                                 sudo = True
                             ):
-                                command.error("Installation script failed: {}".format(script_path))
+                                command.error(f"Installation script failed: {script_path}")
 
     def parse_requirements(self):
         requirements = []
@@ -48,26 +48,24 @@ class ManagerRuntimeMixin(object):
             if 'requirements' in config:
                 for requirement_path in ensure_list(config['requirements']):
                     requirement_path = os.path.join(path, requirement_path)
-                    file_contents = load_file(requirement_path)
-                    if file_contents:
+                    if file_contents := load_file(requirement_path):
                         requirements.extend([ req for req in file_contents.split("\n") if req and req[0].strip() != '#' ])
         return requirements
 
     def install_requirements(self, command, display = True):
-        req_map = {}
-        for req in self.parse_requirements():
-            # PEP 508
-            req_map[re.split(r'[\>\<\!\=\~\s]+', req)[0]] = req
-
+        req_map = {
+            re.split(r'[\>\<\!\=\~\s]+', req)[0]: req
+            for req in self.parse_requirements()
+        }
         requirements = list(req_map.values())
 
         if len(requirements):
             req_text = "\n> ".join(requirements)
             if display:
-                command.info("Installing Python requirements:\n> {}".format(req_text))
+                command.info(f"Installing Python requirements:\n> {req_text}")
 
             if not command.sh(['pip3', 'install'] + requirements, display = display):
                 if display:
                     command.error("Installation of requirements failed")
                 else:
-                    command.error("Installation of requirements failed:\n> {}".format(req_text))
+                    command.error(f"Installation of requirements failed:\n> {req_text}")

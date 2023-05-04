@@ -9,6 +9,6 @@ class Provider(BaseProvider('function', 'keys')):
             return keys
 
         for index, key in enumerate(keys):
-            keys[index] = "{}{}".format(prefix, key)
+            keys[index] = f"{prefix}{key}"
 
         return keys

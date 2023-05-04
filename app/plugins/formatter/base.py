@@ -24,4 +24,4 @@ class BaseProvider(BasePlugin('formatter')):
 
 
     def error(self, message):
-        self.command.error("Formatter {} {} failed: {}".format(self.name, self.field_id, message))
+        self.command.error(f"Formatter {self.name} {self.field_id} failed: {message}")

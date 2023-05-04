@@ -13,7 +13,9 @@ class ProfileComponent(profile.BaseProfileComponent):
         required_types = []
 
         if not frames or not isinstance(frames, dict):
-            self.command.error("Data {} requires 'frames' dictionary (with each frame representing a data query to merge)".format(name))
+            self.command.error(
+                f"Data {name} requires 'frames' dictionary (with each frame representing a data query to merge)"
+            )
 
         if not provider:
             provider = 'collection'
@@ -23,7 +25,7 @@ class ProfileComponent(profile.BaseProfileComponent):
                 if frame_field == 'required':
                     required_types.append(frame_name)
                 else:
-                    config["{}:{}".format(frame_name, frame_field)] = field_value
+                    config[f"{frame_name}:{frame_field}"] = field_value
 
         if required_types:
             config['required_types'] = required_types

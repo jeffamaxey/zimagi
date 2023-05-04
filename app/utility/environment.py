@@ -19,10 +19,10 @@ class MetaEnvironment(type):
 
     def get_db_path(self, name = None):
         env_name = self.get_active_env() if name is None else name
-        return "{}-{}.db".format(settings.BASE_DATA_PATH, env_name)
+        return f"{settings.BASE_DATA_PATH}-{env_name}.db"
 
     def get_env_path(self):
-        return "{}.env.sh".format(settings.BASE_DATA_PATH)
+        return f"{settings.BASE_DATA_PATH}.env.sh"
 
     def get_module_path(self, name = None):
         env_name = self.get_active_env() if name is None else name
@@ -30,30 +30,31 @@ class MetaEnvironment(type):
 
 
     def load_data(self, reset = False):
-        if reset or not self.data:
-            save_data = False
-            with self.lock:
-                self.data = load_yaml(settings.RUNTIME_PATH)
-                if self.data is None:
-                    time = self.time.now
-                    self.data = {
-                        'active': settings.DEFAULT_ENV_NAME,
-                        'environments': {
-                            settings.DEFAULT_ENV_NAME: {
-                                'repo': settings.DEFAULT_RUNTIME_REPO,
-                                'base_image': settings.DEFAULT_RUNTIME_IMAGE,
-                                'created': time,
-                                'updated': time
-                            }
+        if not reset and self.data:
+            return
+        save_data = False
+        with self.lock:
+            self.data = load_yaml(settings.RUNTIME_PATH)
+            if self.data is None:
+                time = self.time.now
+                self.data = {
+                    'active': settings.DEFAULT_ENV_NAME,
+                    'environments': {
+                        settings.DEFAULT_ENV_NAME: {
+                            'repo': settings.DEFAULT_RUNTIME_REPO,
+                            'base_image': settings.DEFAULT_RUNTIME_IMAGE,
+                            'created': time,
+                            'updated': time
                         }
                     }
-                    save_data = True
-                else:
-                    for name, config in self.data['environments'].items():
-                        self.data['environments'][name]['created'] = self.time.to_datetime(config['created'])
-                        self.data['environments'][name]['updated'] = self.time.to_datetime(config['updated'])
-            if save_data:
-                self.save_data()
+                }
+                save_data = True
+            else:
+                for name, config in self.data['environments'].items():
+                    self.data['environments'][name]['created'] = self.time.to_datetime(config['created'])
+                    self.data['environments'][name]['updated'] = self.time.to_datetime(config['updated'])
+        if save_data:
+            self.save_data()
 
     def save_data(self):
         with self.lock:
@@ -75,10 +76,12 @@ class MetaEnvironment(type):
         }
         with self.lock:
             if env_name not in self.data['environments']:
-                raise EnvironmentError("Environment {} is not defined".format(env_name))
+                raise EnvironmentError(f"Environment {env_name} is not defined")
 
             for field_name, field_value in self.data['environments'][env_name].items():
-                variables["ZIMAGI_{}".format(field_name.upper())] = field_value if field_value is not None else ''
+                variables[f"ZIMAGI_{field_name.upper()}"] = (
+                    field_value if field_value is not None else ''
+                )
 
             Config.save(self.get_env_path(), variables)
 
@@ -113,7 +116,7 @@ class MetaEnvironment(type):
 
         with self.lock:
             if env_name not in self.data['environments']:
-                raise EnvironmentError("Environment {} is not defined".format(env_name))
+                raise EnvironmentError(f"Environment {env_name} is not defined")
 
             env_data = copy.deepcopy(self.data['environments'][env_name])
 
@@ -191,7 +194,7 @@ class MetaEnvironment(type):
         self.load_data()
         with self.lock:
             if name not in self.data['environments']:
-                raise EnvironmentError("Environment {} is not defined".format(name))
+                raise EnvironmentError(f"Environment {name} is not defined")
             self.data['active'] = name
         self.save_data()
 

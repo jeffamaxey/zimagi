@@ -62,7 +62,7 @@ class PythonParser(object):
             value = self.parse_variable(value)
         else:
             for ref_match in re.finditer(self.variable_value_pattern, value):
-                variable_value = self.parse_variable("@{}".format(ref_match.group(1)))
+                variable_value = self.parse_variable(f"@{ref_match.group(1)}")
                 if isinstance(variable_value, (list, tuple)):
                     variable_value = ",".join(variable_value)
                 elif isinstance(variable_value, dict):
@@ -73,9 +73,8 @@ class PythonParser(object):
         return value
 
     def parse_variable(self, value):
-        config_match = re.search(self.variable_pattern, value)
-        if config_match:
-            lookup = config_match.group(1).split('.')
+        if config_match := re.search(self.variable_pattern, value):
+            lookup = config_match[1].split('.')
             attribute = lookup.pop()
             lookup_name = ".".join(lookup)
 
@@ -87,7 +86,11 @@ class PythonParser(object):
                 return getattr(module, attribute)
 
             except Exception as e:
-                logger.error("Module attribute import failed: {}.{}: {}".format(".".join(lookup), attribute, e))
+                logger.error(
+                    f'Module attribute import failed: {".".join(lookup)}.{attribute}: {e}'
+                )
 
         # Not found, raise alarm bells!!
-        raise PythonValueInvalid("No Python module/attribute combination for lookup: {}".format(value))
+        raise PythonValueInvalid(
+            f"No Python module/attribute combination for lookup: {value}"
+        )

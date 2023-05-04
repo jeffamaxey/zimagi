@@ -51,29 +51,29 @@ class IndexerDjangoMixin(object):
             data_dir = os.path.join(module_dir, 'data')
 
             if os.path.isdir(data_dir):
-                for name in os.listdir(data_dir):
-                    if name[0] != '_' and os.path.isdir(os.path.join(data_dir, name)) and name not in ('base', 'mixins'):
-                        apps.append("data.{}".format(name))
-
-        logger.debug("Installed Django applications: {}".format(apps))
+                apps.extend(
+                    f"data.{name}"
+                    for name in os.listdir(data_dir)
+                    if name[0] != '_'
+                    and os.path.isdir(os.path.join(data_dir, name))
+                    and name not in ('base', 'mixins')
+                )
+        logger.debug(f"Installed Django applications: {apps}")
         return apps
 
     @lru_cache(maxsize = None)
     def get_installed_middleware(self):
         middleware = []
         for middleware_dir in self.get_module_dirs('middleware'):
-            for name in os.listdir(middleware_dir):
-                if name[0] != '_':
-                    middleware.append("middleware.{}.Middleware".format(name))
-
-        logger.debug("Installed Django middleware: {}".format(middleware))
+            middleware.extend(
+                f"middleware.{name}.Middleware"
+                for name in os.listdir(middleware_dir)
+                if name[0] != '_'
+            )
+        logger.debug(f"Installed Django middleware: {middleware}")
         return middleware
 
 
     @lru_cache(maxsize = None)
     def get_models(self):
-        models = []
-        for model in apps.get_models():
-            if getattr(model, 'facade', None):
-                models.append(model)
-        return models
+        return [model for model in apps.get_models() if getattr(model, 'facade', None)]

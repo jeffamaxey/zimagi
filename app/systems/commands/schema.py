@@ -106,15 +106,21 @@ class Link(object):
         fields = None
     ):
         self.url = '' if url is None else url
-        self.action = 'get' if not action else action
-        self.encoding = 'application/x-www-form-urlencoded' if not encoding else encoding
+        self.action = action if action else 'get'
+        self.encoding = encoding if encoding else 'application/x-www-form-urlencoded'
         self.title = '' if title is None else title
         self.description = '' if description is None else description
         self.resource = '' if resource is None else resource
-        self.fields = () if fields is None else tuple([
-            item if isinstance(item, Field) else Field(item, required = False, location = '')
-            for item in fields
-        ])
+        self.fields = (
+            ()
+            if fields is None
+            else tuple(
+                item
+                if isinstance(item, Field)
+                else Field(item, required=False, location='')
+                for item in fields
+            )
+        )
 
 
 class Error(OrderedDict):

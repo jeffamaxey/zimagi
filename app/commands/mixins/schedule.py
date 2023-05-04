@@ -23,7 +23,9 @@ class ScheduleMixin(CommandMixin('schedule')):
             schedule = self.get_crontab_schedule(representation)
 
         if not schedule:
-            self.error("'{}' is not a valid schedule format.  See --help for more information".format(representation))
+            self.error(
+                f"'{representation}' is not a valid schedule format.  See --help for more information"
+            )
 
         return schedule
 
@@ -32,37 +34,36 @@ class ScheduleMixin(CommandMixin('schedule')):
 
 
     def set_periodic_task(self):
-        schedule = self.schedule
+        if not (schedule := self.schedule):
+            return False
+        begin = self.schedule_begin
+        end = self.schedule_end
 
-        if schedule:
-            begin = self.schedule_begin
-            end = self.schedule_end
+        schedule_map = {
+            'task_interval': 'interval',
+            'task_crontab': 'crontab',
+            'task_datetime': 'clocked'
+        }
+        options = self.options.export()
+        options['_user'] = self.active_user.name
+        task = {
+            schedule_map[schedule.facade.name]: schedule,
+            'task': 'zimagi.command.exec',
+            'user': self.active_user,
+            'args': dump_json([self.get_full_name()]),
+            'kwargs': dump_json(options)
+        }
+        if begin:
+            task['start_time'] = begin
+        if end:
+            task['expires'] = end
 
-            schedule_map = {
-                'task_interval': 'interval',
-                'task_crontab': 'crontab',
-                'task_datetime': 'clocked'
-            }
-            options = self.options.export()
-            options['_user'] = self.active_user.name
-            task = {
-                schedule_map[schedule.facade.name]: schedule,
-                'task': 'zimagi.command.exec',
-                'user': self.active_user,
-                'args': dump_json([self.get_full_name()]),
-                'kwargs': dump_json(options)
-            }
-            if begin:
-                task['start_time'] = begin
-            if end:
-                task['expires'] = end
+        self._scheduled_task.store(self.get_schedule_name(), **task)
 
-            self._scheduled_task.store(self.get_schedule_name(), **task)
-
-            self.success("Task '{}' has been scheduled to execute periodically".format(self.get_full_name()))
-            return True
-
-        return False
+        self.success(
+            f"Task '{self.get_full_name()}' has been scheduled to execute periodically"
+        )
+        return True
 
 
     def set_queue_task(self, log_key):
@@ -74,7 +75,11 @@ class ScheduleMixin(CommandMixin('schedule')):
                     verbosity = verbosity,
                     log = False
                 )
-            return False if self.manager.follow_task(log_key, follow) == self._log.model.STATUS_FAILED else True
+
+            return (
+                self.manager.follow_task(log_key, follow)
+                != self._log.model.STATUS_FAILED
+            )
 
         if self.background_process:
             options = self.options.export()
@@ -131,11 +136,7 @@ class ScheduleMixin(CommandMixin('schedule')):
 
 
     def get_schedule_name(self):
-        return "{}:{}{}".format(
-            self.get_full_name().replace(' ', '-'),
-            datetime.now().strftime("%Y%m%d%H%M%S"),
-            random.SystemRandom().choice(string.ascii_lowercase)
-        )
+        return f"""{self.get_full_name().replace(' ', '-')}:{datetime.now().strftime("%Y%m%d%H%M%S")}{random.SystemRandom().choice(string.ascii_lowercase)}"""
 
 
     def get_interval_schedule(self, representation):
@@ -148,33 +149,37 @@ class ScheduleMixin(CommandMixin('schedule')):
             'S': interval.SECONDS
         }
 
-        match = re.match(r'^(\d+)([DHMS])$', representation, flags = re.IGNORECASE)
-        if match:
-            schedule, created = self._task_interval.store(representation,
-                every = match.group(1),
-                period = period_map[match.group(2).upper()],
+        if match := re.match(
+            r'^(\d+)([DHMS])$', representation, flags=re.IGNORECASE
+        ):
+            schedule, created = self._task_interval.store(
+                representation, every=match[1], period=period_map[match[2].upper()]
             )
         return schedule
 
     def get_crontab_schedule(self, representation):
         schedule = None
 
-        match = re.match(r'^([\*\d\-\/\,]+) ([\*\d\-\/\,]+) ([\*\d\-\/\,]+) ([\*\d\-\/\,]+) ([\*\d\-\/\,]+)$', representation)
-        if match:
-            schedule, created = self._task_crontab.store(representation,
-                minute = match.group(1),
-                hour = match.group(2),
-                day_of_week = match.group(3),
-                day_of_month = match.group(4),
-                month_of_year = match.group(5)
+        if match := re.match(
+            r'^([\*\d\-\/\,]+) ([\*\d\-\/\,]+) ([\*\d\-\/\,]+) ([\*\d\-\/\,]+) ([\*\d\-\/\,]+)$',
+            representation,
+        ):
+            schedule, created = self._task_crontab.store(
+                representation,
+                minute=match[1],
+                hour=match[2],
+                day_of_week=match[3],
+                day_of_month=match[4],
+                month_of_year=match[5],
             )
         return schedule
 
     def get_datetime_schedule(self, representation):
         schedule = None
 
-        match = re.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$', representation)
-        if match:
+        if match := re.match(
+            r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$', representation
+        ):
             schedule, created = self._task_datetime.store(representation,
                 clocked_time = make_aware(datetime.strptime(representation, "%Y-%m-%d %H:%M:%S")),
             )

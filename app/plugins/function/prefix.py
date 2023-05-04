@@ -14,6 +14,6 @@ class Provider(BaseProvider('function', 'prefix')):
             return values
 
         for index, value in enumerate(values):
-            values[index] = "{}{}".format(prefix, value)
+            values[index] = f"{prefix}{value}"
 
         return values

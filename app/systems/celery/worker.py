@@ -80,13 +80,12 @@ class WorkerManager(RedisConnectionMixin, threading.Thread):
                 worker_queues = self.get_queues(self.app, worker_name)
 
                 if worker_name and worker_queues:
-                    if not self.check_queues(worker_queues, app = self.app, worker_name = worker_name):
-                        if (current_time - start_time) > settings.WORKER_TIMEOUT:
-                            os.kill(os.getpid(), signal.SIGTERM)
-                            break
-                    else:
-                       start_time = time.time()
+                    if self.check_queues(worker_queues, app = self.app, worker_name = worker_name):
+                        start_time = time.time()
 
+                    elif (current_time - start_time) > settings.WORKER_TIMEOUT:
+                        os.kill(os.getpid(), signal.SIGTERM)
+                        break
                 time.sleep(settings.WORKER_CHECK_INTERVAL)
                 current_time = time.time()
         finally:

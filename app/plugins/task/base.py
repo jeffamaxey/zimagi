@@ -15,7 +15,7 @@ class TaskResult(object):
         self.message = None
 
     def __str__(self):
-        return "[{}]".format(self.type)
+        return f"[{self.type}]"
 
 
 class BaseProvider(BasePlugin('task')):
@@ -31,10 +31,12 @@ class BaseProvider(BasePlugin('task')):
 
 
     def check_access(self):
-        if self.roles:
-            if not self.command.check_access_by_groups(self.module.instance, self.roles):
-                return False
-        return True
+        return bool(
+            not self.roles
+            or self.command.check_access_by_groups(
+                self.module.instance, self.roles
+            )
+        )
 
 
     def get_fields(self):
@@ -49,7 +51,7 @@ class BaseProvider(BasePlugin('task')):
         if self.check_access():
             self.execute(results, params)
         else:
-            self.command.error("Access is denied for task {}".format(self.name))
+            self.command.error(f"Access is denied for task {self.name}")
 
         return results
 
@@ -78,9 +80,7 @@ class BaseProvider(BasePlugin('task')):
 
 
     def _merge_options(self, options, overrides, lock = False):
-        if not lock and overrides:
-            return { **options, **overrides }
-        return options
+        return { **options, **overrides } if not lock and overrides else options
 
     def _interpolate(self, value, variables):
         if value is None:

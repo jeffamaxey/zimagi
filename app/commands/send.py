@@ -8,10 +8,11 @@ class Send(Command('send')):
 
     def exec(self):
         if not self.check_channel_permission():
-            self.error("You do not have permission to access the {} channel".format(self.communication_channel))
+            self.error(
+                f"You do not have permission to access the {self.communication_channel} channel"
+            )
 
-        connection = self.manager.task_connection()
-        if connection:
+        if connection := self.manager.task_connection():
             data = {
                 'user': self.active_user.name,
                 'time': Time().now_string,
@@ -21,4 +22,6 @@ class Send(Command('send')):
                 channel_communication_key(self.communication_channel),
                 dump_json(data, indent = 2)
             )
-        self.success("Message sent to channel {}: {}".format(self.communication_channel, self.communication_message))
+        self.success(
+            f"Message sent to channel {self.communication_channel}: {self.communication_message}"
+        )

@@ -43,8 +43,7 @@ class ConfigFacade(ModelFacade('config')):
             return []
 
         keep = ['environment']
-        for setting in self.get_settings():
-            keep.append(setting['name'])
+        keep.extend(setting['name'] for setting in self.get_settings())
         return keep
 
 
@@ -57,11 +56,13 @@ class ConfigFacade(ModelFacade('config')):
                 value_type = type(value).__name__
 
                 if value_type in ('bool', 'int', 'float', 'str', 'list', 'dict'):
-                    settings_variables.append({
-                        'name': "{}_{}".format(settings.APP_SERVICE.upper(), setting),
-                        'value': value,
-                        'type': value_type
-                    })
+                    settings_variables.append(
+                        {
+                            'name': f"{settings.APP_SERVICE.upper()}_{setting}",
+                            'value': value,
+                            'type': value_type,
+                        }
+                    )
         return settings_variables
 
 

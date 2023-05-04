@@ -27,27 +27,27 @@ class MetaCipher(type):
 
     @lru_cache(maxsize = None)
     def get_type_spec(self, type):
-        spec = self.types.get(type, None)
-        if not spec:
-            raise EncryptionError("Encryption type specification {} not found".format(type))
-        return spec
+        if spec := self.types.get(type, None):
+            return spec
+        else:
+            raise EncryptionError(f"Encryption type specification {type} not found")
 
 
     @property
     @lru_cache(maxsize = None)
     def state_names(self):
-        names = []
-        for type, spec in self.types.items():
-            if spec.get('initialize', True):
-                names.append(type)
-        return names
+        return [
+            type
+            for type, spec in self.types.items()
+            if spec.get('initialize', True)
+        ]
 
     @lru_cache(maxsize = None)
     def get_state(self, type):
         state_cipher = self.get_state_provider(type)
 
         with project_dir(self.plugin_type, 'keys') as file:
-            config = file.load(".{}".format(type))
+            config = file.load(f".{type}")
             if config:
                 config = oyaml.safe_load(state_cipher.decrypt(config))
             return config
@@ -56,11 +56,11 @@ class MetaCipher(type):
         state_cipher = self.get_state_provider(type)
 
         with project_dir(self.plugin_type, 'keys') as file:
-            file.save(state_cipher.encrypt(oyaml.dump({
-                    **cipher.config,
-                    'provider': cipher.name
-                })).decode('utf-8'),
-                ".{}".format(type)
+            file.save(
+                state_cipher.encrypt(
+                    oyaml.dump({**cipher.config, 'provider': cipher.name})
+                ).decode('utf-8'),
+                f".{type}",
             )
 
     def get_state_provider(self, type):
@@ -80,16 +80,13 @@ class MetaCipher(type):
                 )
 
     def get(self, type, **options):
-        type_id = "{}-{}".format(type, serialize(options)) if options else type
+        type_id = f"{type}-{serialize(options)}" if options else type
 
         if type_id not in self.cipher:
-            if not getattr(settings, "ENCRYPT_{}".format(type.upper()), True):
+            if not getattr(settings, f"ENCRYPT_{type.upper()}", True):
                 self.cipher[type_id] = self.get_base(type)
             else:
-                cipher = None
-
-                if not options:
-                    cipher = self.get_from_state(type)
+                cipher = None if options else self.get_from_state(type)
                 if not cipher:
                     cipher = self.get_from_spec(type, options)
 
@@ -113,9 +110,9 @@ class MetaCipher(type):
         return self.get_provider(
             type,
             spec.get('provider', 'base'),
-            "/var/local/keys/{}.key".format(type),
-            { **spec.get('options', {}), **options },
-            class_only = class_only
+            f"/var/local/keys/{type}.key",
+            {**spec.get('options', {}), **options},
+            class_only=class_only,
         )
 
     def get_from_state(self, type, class_only = False):
@@ -143,7 +140,7 @@ class MetaCipher(type):
         elif name in providers.keys():
             provider_class = providers[name]
         else:
-            raise EncryptionError("Encryption provider {} not supported".format(name))
+            raise EncryptionError(f"Encryption provider {name} not supported")
 
         if class_only:
             return provider_class
@@ -154,7 +151,7 @@ class MetaCipher(type):
                 initialize = initialize
             )
         except Exception as error:
-            raise EncryptionError("Encryption provider {} error: {}".format(name, error))
+            raise EncryptionError(f"Encryption provider {name} error: {error}")
 
 
     def run_migration(self, type, current_cipher, spec_cipher):
@@ -163,7 +160,7 @@ class MetaCipher(type):
         if not state or current_cipher != spec_cipher:
             if state:
                 try:
-                    migration_lib = importlib.import_module("systems.encryption.{}".format(type))
+                    migration_lib = importlib.import_module(f"systems.encryption.{type}")
                     migration = migration_lib.Migration(type,
                         old_cipher = current_cipher,
                         new_cipher = spec_cipher
@@ -171,7 +168,9 @@ class MetaCipher(type):
                 except ModuleNotFoundError:
                     migration = None
                 except AttributeError:
-                    raise EncryptionError("Migration class required in encryption type library: {}".format(type))
+                    raise EncryptionError(
+                        f"Migration class required in encryption type library: {type}"
+                    )
 
                 if migration:
                     migration.run()

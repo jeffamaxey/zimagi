@@ -10,10 +10,12 @@ class Provider(BaseProvider('task', 'remote_script')):
         script_path = self.get_path(self.field_script)
 
         if not os.path.exists(script_path):
-            self.command.error("Remote script task provider file {} does not exist".format(script_path))
+            self.command.error(
+                f"Remote script task provider file {script_path} does not exist"
+            )
 
         script_base, script_ext = os.path.splitext(script_path)
-        temp_path = "/tmp/{}{}".format(self.generate_name(24), script_ext)
+        temp_path = f"/tmp/{self.generate_name(24)}{script_ext}"
 
         env = self._env_vars(params)
         options = self._merge_options(self.field_options, params, self.field_lock)

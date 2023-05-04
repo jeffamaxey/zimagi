@@ -85,20 +85,20 @@ class MetaFilterSet(FilterSetMetaclass):
 
 
     @classmethod
-    def _get_text_lookups(self):
+    def _get_text_lookups(cls):
         return ['iexact', 'contains', 'icontains', 'startswith', 'istartswith', 'endswith', 'iendswith', 'regex', 'iregex']
 
     @classmethod
-    def _get_number_lookups(self):
+    def _get_number_lookups(cls):
         return ['lt', 'lte', 'gt', 'gte']
 
     @classmethod
-    def _get_date_lookups(self):
+    def _get_date_lookups(cls):
         return ['year', 'month', 'day', 'week', 'week_day', 'quarter']
 
     @classmethod
-    def _get_time_lookups(self):
-        return self._get_date_lookups() + ['hour', 'minute', 'second']
+    def _get_time_lookups(cls):
+        return cls._get_date_lookups() + ['hour', 'minute', 'second']
 
 
     @classmethod
@@ -107,7 +107,9 @@ class MetaFilterSet(FilterSetMetaclass):
         field = info['field']
 
         filters[name] = BooleanFilter(field_name = field, lookup_expr = 'exact')
-        filters["{}__isnull".format(name)] = BooleanFilter(field_name = field, lookup_expr = 'isnull')
+        filters[f"{name}__isnull"] = BooleanFilter(
+            field_name=field, lookup_expr='isnull'
+        )
 
 
     @classmethod
@@ -116,11 +118,15 @@ class MetaFilterSet(FilterSetMetaclass):
         field = info['field']
 
         filters[name] = CharFilter(field_name = field, lookup_expr = 'exact')
-        filters["{}__isnull".format(name)] = BooleanFilter(field_name = field, lookup_expr = 'isnull')
-        filters["{}__in".format(name)] = CharInFilter(field_name = field)
+        filters[f"{name}__isnull"] = BooleanFilter(
+            field_name=field, lookup_expr='isnull'
+        )
+        filters[f"{name}__in"] = CharInFilter(field_name = field)
 
         for lookup in cls._get_text_lookups():
-            filters['{}__{}'.format(name, lookup)] = CharFilter(field_name = field, lookup_expr = lookup)
+            filters[f'{name}__{lookup}'] = CharFilter(
+                field_name=field, lookup_expr=lookup
+            )
 
 
     @classmethod
@@ -129,12 +135,16 @@ class MetaFilterSet(FilterSetMetaclass):
         field = info['field']
 
         filters[name] = NumberFilter(field_name = field, lookup_expr = 'exact')
-        filters["{}__isnull".format(name)] = BooleanFilter(field_name = field, lookup_expr = 'isnull')
-        filters["{}__in".format(name)] = NumberInFilter(field_name = field)
-        filters["{}__range".format(name)] = NumberRangeFilter(field_name = field)
+        filters[f"{name}__isnull"] = BooleanFilter(
+            field_name=field, lookup_expr='isnull'
+        )
+        filters[f"{name}__in"] = NumberInFilter(field_name = field)
+        filters[f"{name}__range"] = NumberRangeFilter(field_name = field)
 
         for lookup in cls._get_number_lookups():
-            filters["{}__{}".format(name, lookup)] = NumberFilter(field_name = field, lookup_expr = lookup)
+            filters[f"{name}__{lookup}"] = NumberFilter(
+                field_name=field, lookup_expr=lookup
+            )
 
 
     @classmethod
@@ -143,22 +153,30 @@ class MetaFilterSet(FilterSetMetaclass):
         field = info['field']
 
         filters[name] = CharFilter(field_name = field, lookup_expr = 'startswith')
-        filters["{}__isnull".format(name)] = BooleanFilter(field_name = field, lookup_expr = 'isnull')
-        filters["{}__date".format(name)] = DateFilter(field_name = field, lookup_expr = 'date')
-        filters["{}__in".format(name)] = DateInFilter(field_name = field)
-        filters["{}__range".format(name)] = DateRangeFilter(field_name = field)
+        filters[f"{name}__isnull"] = BooleanFilter(
+            field_name=field, lookup_expr='isnull'
+        )
+        filters[f"{name}__date"] = DateFilter(field_name = field, lookup_expr = 'date')
+        filters[f"{name}__in"] = DateInFilter(field_name = field)
+        filters[f"{name}__range"] = DateRangeFilter(field_name = field)
 
         for lookup in cls._get_number_lookups():
-            filters["{}__{}".format(name, lookup)] = DateFilter(field_name = field, lookup_expr = lookup)
+            filters[f"{name}__{lookup}"] = DateFilter(
+                field_name=field, lookup_expr=lookup
+            )
 
         for lookup in cls._get_date_lookups():
-            filters["{}__{}".format(name, lookup)] = NumberFilter(field_name = field, lookup_expr = lookup)
-            filters["{}__{}__in".format(name, lookup)] = NumberInFilter(field_name = field)
-            filters["{}__{}__range".format(name, lookup)] = NumberRangeFilter(field_name = field)
+            filters[f"{name}__{lookup}"] = NumberFilter(
+                field_name=field, lookup_expr=lookup
+            )
+            filters[f"{name}__{lookup}__in"] = NumberInFilter(field_name = field)
+            filters[f"{name}__{lookup}__range"] = NumberRangeFilter(field_name = field)
 
             for sub_lookup in cls._get_number_lookups():
-                full_lookup = "{}__{}".format(lookup, sub_lookup)
-                filters["{}__{}".format(name, full_lookup)] = NumberFilter(field_name = field, lookup_expr = full_lookup)
+                full_lookup = f"{lookup}__{sub_lookup}"
+                filters[f"{name}__{full_lookup}"] = NumberFilter(
+                    field_name=field, lookup_expr=full_lookup
+                )
 
 
     @classmethod
@@ -167,22 +185,32 @@ class MetaFilterSet(FilterSetMetaclass):
         field = info['field']
 
         filters[name] = CharFilter(field_name = field, lookup_expr = 'startswith')
-        filters["{}__isnull".format(name)] = BooleanFilter(field_name = field, lookup_expr = 'isnull')
-        filters["{}__time".format(name)] = DateTimeFilter(field_name = field, lookup_expr = 'time')
-        filters["{}__in".format(name)] = DateTimeInFilter(field_name = field)
-        filters["{}__range".format(name)] = DateTimeRangeFilter(field_name = field)
+        filters[f"{name}__isnull"] = BooleanFilter(
+            field_name=field, lookup_expr='isnull'
+        )
+        filters[f"{name}__time"] = DateTimeFilter(
+            field_name=field, lookup_expr='time'
+        )
+        filters[f"{name}__in"] = DateTimeInFilter(field_name = field)
+        filters[f"{name}__range"] = DateTimeRangeFilter(field_name = field)
 
         for lookup in cls._get_number_lookups():
-            filters["{}__{}".format(name, lookup)] = DateTimeFilter(field_name = field, lookup_expr = lookup)
+            filters[f"{name}__{lookup}"] = DateTimeFilter(
+                field_name=field, lookup_expr=lookup
+            )
 
         for lookup in cls._get_time_lookups():
-            filters["{}__{}".format(name, lookup)] = NumberFilter(field_name = field, lookup_expr = lookup)
-            filters["{}__{}__in".format(name, lookup)] = NumberInFilter(field_name = field)
-            filters["{}__{}__range".format(name, lookup)] = NumberRangeFilter(field_name = field)
+            filters[f"{name}__{lookup}"] = NumberFilter(
+                field_name=field, lookup_expr=lookup
+            )
+            filters[f"{name}__{lookup}__in"] = NumberInFilter(field_name = field)
+            filters[f"{name}__{lookup}__range"] = NumberRangeFilter(field_name = field)
 
             for sub_lookup in cls._get_number_lookups():
-                full_lookup = "{}__{}".format(lookup, sub_lookup)
-                filters["{}__{}".format(name, full_lookup)] = NumberFilter(field_name = field, lookup_expr = full_lookup)
+                full_lookup = f"{lookup}__{sub_lookup}"
+                filters[f"{name}__{full_lookup}"] = NumberFilter(
+                    field_name=field, lookup_expr=full_lookup
+                )
 
 
     @classmethod
@@ -225,22 +253,15 @@ class BaseFilterSet(FilterSet, metaclass = MetaFilterSet):
             aggregator_map = related_facade.aggregator_map
 
             for type in FILTER_TYPES:
-                type_fields = getattr(related_facade, "{}_fields".format(type))
-
-                if type_fields:
+                if type_fields := getattr(related_facade, f"{type}_fields"):
                     aggregators = related_facade.get_aggregators(type)
 
                     for field_name in type_fields:
                         for aggregator_func in aggregators:
-                            full_field_name = "{}__{}".format(field, field_name)
-                            annotation_name = "{}:{}".format(full_field_name, aggregator_func)
+                            full_field_name = f"{field}__{field_name}"
+                            annotation_name = f"{full_field_name}:{aggregator_func}"
                             aggregator_info = aggregator_map[aggregator_func]
-                            include = False
-
-                            for parameter in parameters:
-                                if annotation_name in parameter:
-                                    include = True
-
+                            include = any(annotation_name in parameter for parameter in parameters)
                             if include:
                                 if aggregator_info['distinct']:
                                     annotations[annotation_name] = aggregator_info['class'](full_field_name, distinct = True)
@@ -251,7 +272,7 @@ class BaseFilterSet(FilterSet, metaclass = MetaFilterSet):
 
 
 def DataFilterSet(facade):
-    class_name = "{}DataFilterSet".format(facade.name.title())
+    class_name = f"{facade.name.title()}DataFilterSet"
 
     if class_name in globals():
         return globals()[class_name]
@@ -274,7 +295,7 @@ def DataFilterSet(facade):
         if getattr(info['model'], 'facade', None):
             relation_facade = info['model'].facade
             field_map[field_name] = DataRelatedFilter(
-                "systems.api.data.filters.{}DataFilterSet".format(relation_facade.name.title())
+                f"systems.api.data.filters.{relation_facade.name.title()}DataFilterSet"
             )
             if info['multiple']:
                 related_fields[field_name] = info
@@ -336,8 +357,7 @@ class LimitFilterBackend(BaseFilterBackend):
 
 
     def filter_queryset(self, request, queryset, view):
-        limit = request.query_params.get(self.limit_param, None)
-        if limit:
+        if limit := request.query_params.get(self.limit_param, None):
             queryset = queryset[:int(limit)]
 
         return queryset

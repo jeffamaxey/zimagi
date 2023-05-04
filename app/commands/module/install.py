@@ -15,8 +15,7 @@ class Install(Command('module.install')):
             cid = self.manager.container_id
             image = self.manager.generate_image_name(env.base_image, self.tag)
 
-            old_runtime_image = self.delete_state('old_runtime_image')
-            if old_runtime_image:
+            if old_runtime_image := self.delete_state('old_runtime_image'):
                 self.manager.delete_image(old_runtime_image)
 
             self.manager.create_image(cid, image)

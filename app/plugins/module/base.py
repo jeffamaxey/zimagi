@@ -60,9 +60,11 @@ class BaseProvider(BasePlugin('module')):
                         'module_fields': fields,
                         'verbosity': 0
                     })
-                    modules = list(self.command.search_instances(self.command._module,
-                        "remote={}".format(remote)
-                    ))
+                    modules = list(
+                        self.command.search_instances(
+                            self.command._module, f"remote={remote}"
+                        )
+                    )
                     modules[0].provider.load_parents()
 
 
@@ -82,25 +84,33 @@ class BaseProvider(BasePlugin('module')):
         profile_names = []
 
         if config['profiles']:
-            base_path = "{}/{}".format(module_path, config['profiles'])
-            for file in glob.glob("{}/**/*.yml".format(base_path), recursive = True):
-                profile_names.append(re.sub(r'^\/([^\.]+)\.yml$', r'\1', file[len(base_path):]))
-
+            base_path = f"{module_path}/{config['profiles']}"
+            profile_names.extend(
+                re.sub(r'^\/([^\.]+)\.yml$', r'\1', file[len(base_path) :])
+                for file in glob.glob(f"{base_path}/**/*.yml", recursive=True)
+            )
             if not profile_data:
-                profile_data = self.load_yaml("{}/{}.yml".format(config['profiles'], profile_name))
+                profile_data = self.load_yaml(f"{config['profiles']}/{profile_name}.yml")
 
-        if profile_name == 'list' or profile_data is None:
-            if show_options:
-                self.command.info("Available profiles in this module:\n")
-                for name in sorted(profile_names):
-                    self.command.info(" * {}".format(self.command.header_color(name)))
+        if (
+            profile_name == 'list'
+            and show_options
+            or profile_name != 'list'
+            and profile_data is None
+            and show_options
+        ):
+            self.command.info("Available profiles in this module:\n")
+            for name in sorted(profile_names):
+                self.command.info(f" * {self.command.header_color(name)}")
 
-                if profile_name == 'list':
-                    self.command.error('')
-                else:
-                    self.command.error("Profile {} not found in module {}".format(profile_name, self.instance.name))
+            if profile_name == 'list':
+                self.command.error('')
             else:
-                return None
+                self.command.error(
+                    f"Profile {profile_name} not found in module {self.instance.name}"
+                )
+        elif profile_name == 'list' or profile_data is None:
+            return None
 
         return self.get_profile_class()(self, profile_name, profile_data)
 
@@ -111,8 +121,9 @@ class BaseProvider(BasePlugin('module')):
             components = []
 
         self.check_instance('module run profile')
-        profile = self.get_profile(profile_name, show_options = not ignore_missing)
-        if profile:
+        if profile := self.get_profile(
+            profile_name, show_options=not ignore_missing
+        ):
             profile.run(components, config = config, display_only = display_only, test = test)
 
     def destroy_profile(self, profile_name, config = None, components = None, display_only = False, ignore_missing = False):
@@ -122,8 +133,9 @@ class BaseProvider(BasePlugin('module')):
             components = []
 
         self.check_instance('module destroy profile')
-        profile = self.get_profile(profile_name, show_options = not ignore_missing)
-        if profile:
+        if profile := self.get_profile(
+            profile_name, show_options=not ignore_missing
+        ):
             profile.destroy(components, config = config, display_only = display_only)
 
 
@@ -156,13 +168,15 @@ class BaseProvider(BasePlugin('module')):
                         'task', tasks[name]['provider'], self, tasks[name]
                     )
                     fields = deep_merge(task.get_fields(), { 'provider': '<required>' })
-                    self.command.info(" * {}\n".format(self.command.header_color(name)))
+                    self.command.info(f" * {self.command.header_color(name)}\n")
                     self.command.notice(yaml.dump(deep_merge(fields, tasks[name])))
 
             if task_name == 'list':
                 self.command.error('')
             else:
-                self.command.error("Task {} not found in module {} zimagi.yml".format(task_name, self.instance.name))
+                self.command.error(
+                    f"Task {task_name} not found in module {self.instance.name} zimagi.yml"
+                )
 
         config = tasks[task_name]
         provider = config.pop('provider', 'command')
@@ -183,9 +197,7 @@ class BaseProvider(BasePlugin('module')):
         files = []
         for filename in os.listdir(base_path):
             if extensions:
-                for ext in extensions:
-                    if filename.endswith(".{}".format(ext)):
-                        files.append(filename)
+                files.extend(filename for ext in extensions if filename.endswith(f".{ext}"))
             else:
                 files.append(filename)
         return files

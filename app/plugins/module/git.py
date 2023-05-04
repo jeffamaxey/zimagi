@@ -41,15 +41,17 @@ class Provider(BaseProvider('module', 'git')):
 
     def get_module_name(self, instance):
         with temp_dir() as temp:
-            temp_module_path = "{}/module".format(temp.base_path)
+            temp_module_path = f"{temp.base_path}/module"
             repository = pygit2.clone_repository(instance.remote, temp_module_path,
                 checkout_branch = instance.reference,
                 callbacks = self._get_credentials(instance, temp)
             )
-            config = load_yaml("{}/zimagi.yml".format(temp_module_path))
+            config = load_yaml(f"{temp_module_path}/zimagi.yml")
 
             if not isinstance(config, dict) or 'name' not in config:
-                self.command.error("Module configuration required for {} at {}".format(instance.remote, instance.reference))
+                self.command.error(
+                    f"Module configuration required for {instance.remote} at {instance.reference}"
+                )
 
         return config['name']
 
@@ -106,7 +108,9 @@ class Provider(BaseProvider('module', 'git')):
         remote = repository.remotes[remote_name]
         remote.fetch(callbacks = self._get_credentials(instance, temp))
 
-        remote_reference = repository.lookup_reference('refs/remotes/{}/{}'.format(remote_name, instance.reference)).target
+        remote_reference = repository.lookup_reference(
+            f'refs/remotes/{remote_name}/{instance.reference}'
+        ).target
         merge_result, _ = repository.merge_analysis(remote_reference)
 
         if merge_result & pygit2.GIT_MERGE_ANALYSIS_UP_TO_DATE:
@@ -114,7 +118,9 @@ class Provider(BaseProvider('module', 'git')):
 
         elif merge_result & pygit2.GIT_MERGE_ANALYSIS_FASTFORWARD:
             repository.checkout_tree(repository.get(remote_reference))
-            head_reference = repository.lookup_reference('refs/heads/{}'.format(instance.reference))
+            head_reference = repository.lookup_reference(
+                f'refs/heads/{instance.reference}'
+            )
             head_reference.set_target(remote_reference)
             repository.head.set_target(remote_reference)
 

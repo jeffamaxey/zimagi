@@ -16,17 +16,28 @@ class Provider(BaseProvider('parser', 'conditional_value')):
         if config.conditional_suppress:
             config.conditional_suppress = re.compile(config.conditional_suppress)
 
-        conditional_match = re.search(self.conditional_pattern, value)
-        if conditional_match:
-            test_element = normalize_value(self.command.options.interpolate(conditional_match.group(1).strip(), **config.export()))
-            true_value = normalize_value(self.command.options.interpolate(conditional_match.group(2).strip(), **config.export()))
-            false_value = normalize_value(self.command.options.interpolate(conditional_match.group(3).strip(), **config.export()))
+        if conditional_match := re.search(self.conditional_pattern, value):
+            test_element = normalize_value(
+                self.command.options.interpolate(
+                    conditional_match[1].strip(), **config.export()
+                )
+            )
+            true_value = normalize_value(
+                self.command.options.interpolate(
+                    conditional_match[2].strip(), **config.export()
+                )
+            )
+            false_value = normalize_value(
+                self.command.options.interpolate(
+                    conditional_match[3].strip(), **config.export()
+                )
+            )
 
             if config.conditional_suppress \
-                and ((isinstance(test_element, str) and config.conditional_suppress.search(test_element)) \
-                or (isinstance(true_value, str) and config.conditional_suppress.search(true_value)) \
-                or (isinstance(false_value, str) and config.conditional_suppress.search(false_value))):
-                value = "?> {} ? {} | {}".format(test_element, true_value, false_value)
+                    and ((isinstance(test_element, str) and config.conditional_suppress.search(test_element)) \
+                    or (isinstance(true_value, str) and config.conditional_suppress.search(true_value)) \
+                    or (isinstance(false_value, str) and config.conditional_suppress.search(false_value))):
+                value = f"?> {test_element} ? {true_value} | {false_value}"
             else:
                 try:
                     test = eval(test_element) if isinstance(test_element, str) else test_element

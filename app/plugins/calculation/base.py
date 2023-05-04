@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 for directory in settings.MANAGER.index.get_module_dirs('plugins/calculation/functions'):
-    for function_file in glob.glob("{}/*.py".format(directory)):
+    for function_file in glob.glob(f"{directory}/*.py"):
         spec = importlib.util.spec_from_file_location("module.name", function_file)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -45,7 +45,7 @@ class ParameterData(object):
     def __str__(self):
         message = ""
         for name, value in self.parameters.items():
-            message = message + " << {} >> {}\n".format(name, value)
+            message = f"{message} << {name} >> {value}\n"
         return message
 
 
@@ -58,10 +58,7 @@ class BaseProvider(BasePlugin('calculation')):
 
 
     def check(self, *args):
-        for arg in args:
-            if arg is None:
-                return False
-        return True
+        return all(arg is not None for arg in args)
 
     def calc(self, params):
         # Override in subclass
@@ -88,7 +85,7 @@ class BaseProvider(BasePlugin('calculation')):
     def load_items(self, facade, reset):
         filters = self._interpolate_values(self.field_filters)
         if not reset and not self.field_record:
-            filters["{}__isnull".format(self.field_field)] = True
+            filters[f"{self.field_field}__isnull"] = True
 
         return facade.values(*self._collect_fields(facade), **filters)
 
@@ -118,12 +115,7 @@ class BaseProvider(BasePlugin('calculation')):
                     data_type = self.field_record.get('_data', self.field_data)
                     self._save_row(self.command.facade(data_type, False), value, record)
         else:
-            self.command.warning("Skipping {} {} value {}: {}".format(
-                self.id,
-                key,
-                value,
-                record
-            ))
+            self.command.warning(f"Skipping {self.id} {key} value {value}: {record}")
         return success
 
 
@@ -144,7 +136,7 @@ class BaseProvider(BasePlugin('calculation')):
         scope = {}
 
         for field in facade.scope_fields:
-            field_id = "{}_id".format(field)
+            field_id = f"{field}_id"
             if field in values:
                 scope[field] = values[field]
             elif field_id in values:
@@ -245,9 +237,7 @@ class BaseProvider(BasePlugin('calculation')):
 
         def interpolate(value):
             result = self._replace_pattern(value, record)
-            if re.search(r'[\s\(\)]+', value):
-                return eval(result)
-            return result
+            return eval(result) if re.search(r'[\s\(\)]+', value) else result
 
         for key, value in specs.items():
             key = re.sub(r'\.', '__', key)
@@ -286,7 +276,7 @@ class BaseProvider(BasePlugin('calculation')):
         if config is None:
             config = {}
 
-        config['id'] = "{}:{}".format(self.id, id)
+        config['id'] = f"{self.id}:{id}"
         config['record'] = record
 
         return self.command.get_provider(
@@ -296,7 +286,7 @@ class BaseProvider(BasePlugin('calculation')):
     def _run_formatter(self, id, provider, config, value, record):
         if config is None:
             config = {}
-        config['id'] = "{}:{}".format(self.id, id)
+        config['id'] = f"{self.id}:{id}"
         return self.command.get_provider(
             'formatter', provider, config
         ).format(value, record)

@@ -66,7 +66,7 @@ class BaseTransport(object):
                 decoders
             )
         except ConnectionError as error:
-            logger.debug("Request {} connection error: {}".format(url, error))
+            logger.debug(f"Request {url} connection error: {error}")
             raise exceptions.ConnectionError(connection_error_message)
 
     def handle_request(self, url, path, headers, params, decoders):
@@ -80,7 +80,7 @@ class BaseTransport(object):
             encrypted = encrypted,
             disable_callbacks = disable_callbacks
         )
-        logger.debug("Page {} request headers: {}".format(url, headers))
+        logger.debug(f"Page {url} request headers: {headers}")
 
         if response.status_code >= 400:
             raise exceptions.ResponseError(
@@ -117,13 +117,14 @@ class BaseTransport(object):
 
 
     def _encrypt_params(self, params):
-        if not self.client.cipher:
-            return params
-
-        enc_params = {}
-        for key, value in params.items():
-            enc_params[key] = self.client.cipher.encrypt(value)
-        return enc_params
+        return (
+            {
+                key: self.client.cipher.encrypt(value)
+                for key, value in params.items()
+            }
+            if self.client.cipher
+            else params
+        )
 
 
     def decode_message(self, request, response, decoders, message = None, decrypt = True, disable_callbacks = False):
@@ -156,5 +157,5 @@ class BaseTransport(object):
                 return codec
 
         raise exceptions.ClientError(
-            "Unsupported media in Content-Type header '{}'".format(content_type)
+            f"Unsupported media in Content-Type header '{content_type}'"
         )

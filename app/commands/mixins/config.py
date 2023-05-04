@@ -8,7 +8,4 @@ class ConfigMixin(CommandMixin('config')):
             return default
 
         config = self.get_instance(self._config, name, required = required)
-        if config is None:
-            return default
-
-        return config.value
+        return default if config is None else config.value

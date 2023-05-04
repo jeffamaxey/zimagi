@@ -28,9 +28,13 @@ class APITokenAuthentication(authentication.TokenAuthentication):
         auth_components = re.split(r'\s+', token_text)
 
         if len(auth_components) != 3:
-            raise exceptions.AuthenticationFailed("Invalid token. Required format: {} <user_name> <token>".format(self.keyword))
+            raise exceptions.AuthenticationFailed(
+                f"Invalid token. Required format: {self.keyword} <user_name> <token>"
+            )
         if auth_components[0].lower() != self.keyword.lower():
-            raise exceptions.AuthenticationFailed("Authentication header required: 'Authorization: {} <user_name> <token>'".format(self.keyword))
+            raise exceptions.AuthenticationFailed(
+                f"Authentication header required: 'Authorization: {self.keyword} <user_name> <token>'"
+            )
 
         try:
             user = self.user_class.facade.retrieve(auth_components[1])

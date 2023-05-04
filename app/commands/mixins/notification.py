@@ -70,22 +70,17 @@ class NotificationMixin(CommandMixin('notification')):
 
     def format_notification_subject(self, success):
         status = 'SUCCESS' if success else 'FAILED'
-        return  "{} {}: {}".format(
-            settings.EMAIL_SUBJECT_PREFIX,
-            status,
-            self.get_full_name()
-        )
+        return f"{settings.EMAIL_SUBJECT_PREFIX} {status}: {self.get_full_name()}"
 
     def format_notification_body(self):
-        option_lines = []
-        for key, val in self.options.export().items():
-            option_lines.append("> {}: {}".format(key, val))
-
+        option_lines = [
+            f"> {key}: {val}" for key, val in self.options.export().items()
+        ]
         return "Command: {}\n\nOptions:\n\n{}\n\nMessages:\n\n{}\n\nMore Information:\n\n{}".format(
             self.get_full_name(),
             "\n".join(option_lines),
             "\n".join(self.notification_messages),
-            "zimagi log get {}".format(self.log_entry.get_id())
+            f"zimagi log get {self.log_entry.get_id()}",
         )
 
 

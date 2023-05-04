@@ -42,16 +42,12 @@ class CommandResponse(object):
 
 
     def error_message(self):
-        messages = []
-        for message in self.errors:
-            messages.append(message.format())
-
+        messages = [message.format() for message in self.errors]
         return "\n\n".join(messages)
 
 
     def get_named_data(self, name):
-        message = self.named.get(name, None)
-        if message:
+        if message := self.named.get(name, None):
             try:
                 return message.data
             except AttributeError:

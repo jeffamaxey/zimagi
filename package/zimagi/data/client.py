@@ -55,15 +55,15 @@ class Client(client.BaseAPIClient):
     def _execute_type_operation(self, data_type, op, options):
         if op is None:
             return self.execute(data_type, options)
-        return self.execute("{}/{}".format(data_type, op), options)
+        return self.execute(f"{data_type}/{op}", options)
 
     def _execute_key_operation(self, data_type, op, key, options):
         if op is None:
-            return self.execute("{}/{}".format(data_type, key), options)
-        return self.execute("{}/{}/{}".format(data_type, key, op), options)
+            return self.execute(f"{data_type}/{key}", options)
+        return self.execute(f"{data_type}/{key}/{op}", options)
 
     def _execute_field_operation(self, data_type, op, field_name, options):
-        return self.execute("{}/{}/{}".format(data_type, op, field_name), options)
+        return self.execute(f"{data_type}/{op}/{field_name}", options)
 
 
     def list(self, data_type, options = None):
@@ -88,4 +88,4 @@ class Client(client.BaseAPIClient):
 
 
     def download(self, dataset_name):
-        return self.execute("download/{}".format(dataset_name))
+        return self.execute(f"download/{dataset_name}")

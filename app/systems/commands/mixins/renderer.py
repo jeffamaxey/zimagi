@@ -19,12 +19,13 @@ class RendererMixin(
         data = [fields]
 
         for instance in queryset:
-            instance = self.get_instance_by_id(facade, instance.get_id(), required = False)
-            if instance:
+            if instance := self.get_instance_by_id(
+                facade, instance.get_id(), required=False
+            ):
                 record = []
 
                 for field in fields:
-                    display_method = getattr(facade, "get_field_{}_display".format(field), None)
+                    display_method = getattr(facade, f"get_field_{field}_display", None)
                     value = getattr(instance, field, None)
 
                     if display_method and callable(display_method):
@@ -60,10 +61,10 @@ class RendererMixin(
         return info
 
     def get_related_fields(self, facade):
-        info = {}
-        for field_name, field_info in facade.get_all_relations().items():
-            info[field_name] = field_info['label']
-        return info
+        return {
+            field_name: field_info['label']
+            for field_name, field_info in facade.get_all_relations().items()
+        }
 
     def get_config_fields(self, facade, config_name, allowed_fields = None):
         default_fields = self.get_default_fields(facade)
@@ -73,20 +74,18 @@ class RendererMixin(
         else:
             overrides = self.get_config(config_name, None)
 
-        if overrides:
-            fields = OrderedDict()
-            fields[facade.key()] = default_fields[facade.key()]
-
-            for field_name in data.ensure_list(overrides):
-                if field_name == facade.pk:
-                    fields[field_name] = 'ID'
-                else:
-                    if field_name in default_fields:
-                        fields[field_name] = default_fields[field_name]
-
-            return fields
-        else:
+        if not overrides:
             return default_fields
+        fields = OrderedDict()
+        fields[facade.key()] = default_fields[facade.key()]
+
+        for field_name in data.ensure_list(overrides):
+            if field_name == facade.pk:
+                fields[field_name] = 'ID'
+            elif field_name in default_fields:
+                fields[field_name] = default_fields[field_name]
+
+        return fields
 
     def get_config_relations(self, facade, config_name, allowed_fields = None):
         related_fields = self.get_related_fields(facade)
@@ -96,29 +95,28 @@ class RendererMixin(
         else:
             overrides = self.get_config(config_name, None)
 
-        if overrides:
-            fields = OrderedDict()
-            for field_name in data.ensure_list(overrides):
-                if field_name in related_fields:
-                    fields[field_name] = related_fields[field_name]
-            return fields
-        else:
+        if not overrides:
             return related_fields
+        fields = OrderedDict()
+        for field_name in data.ensure_list(overrides):
+            if field_name in related_fields:
+                fields[field_name] = related_fields[field_name]
+        return fields
 
     def get_list_fields(self, facade, allowed_fields = None):
-        config_name = "{}_list_fields".format(facade.name)
+        config_name = f"{facade.name}_list_fields"
         return self.get_config_fields(facade, config_name, allowed_fields)
 
     def get_list_relations(self, facade, allowed_fields = None):
-        config_name = "{}_list_fields".format(facade.name)
+        config_name = f"{facade.name}_list_fields"
         return self.get_config_relations(facade, config_name, allowed_fields)
 
     def get_display_fields(self, facade, allowed_fields = None):
-        config_name = "{}_display_fields".format(facade.name)
+        config_name = f"{facade.name}_display_fields"
         return self.get_config_fields(facade, config_name, allowed_fields)
 
     def get_display_relations(self, facade, allowed_fields = None):
-        config_name = "{}_display_fields".format(facade.name)
+        config_name = f"{facade.name}_display_fields"
         return self.get_config_relations(facade, config_name, allowed_fields)
 
 
@@ -157,7 +155,7 @@ class RendererMixin(
         )
         data[0] = [ self.header_color(x) for x in labels ]
         if len(data) > 1:
-            for index, info in enumerate(data[1:]):
+            for info in data[1:]:
                 id = self.raw_text(info.pop(0))
                 for field_name in field_relations:
                     field_info = relations[field_name]
@@ -165,8 +163,10 @@ class RendererMixin(
                     value = getattr(instances[id], field_name)
 
                     if field_info['multiple']:
-                        for sub_instance in value.all():
-                            items.append(self.relation_color(str(sub_instance)))
+                        items.extend(
+                            self.relation_color(str(sub_instance))
+                            for sub_instance in value.all()
+                        )
                     else:
                         items.append(self.relation_color(str(value)))
 
@@ -197,7 +197,7 @@ class RendererMixin(
 
             data[0] = [ self.header_color(x) for x in labels ]
 
-            for index, info in enumerate(data[1:]):
+            for info in data[1:]:
                 id = self.raw_text(info.pop(id_index))
                 instance = self.get_instance_by_id(facade, id, required = False)
                 info[key_index] = info[key_index]
@@ -208,8 +208,10 @@ class RendererMixin(
                     value = getattr(instance, field_name)
 
                     if field_info['multiple']:
-                        for sub_instance in value.all():
-                            items.append(self.relation_color(str(sub_instance)))
+                        items.extend(
+                            self.relation_color(str(sub_instance))
+                            for sub_instance in value.all()
+                        )
                     else:
                         items.append(self.relation_color(str(value)))
 
@@ -230,16 +232,15 @@ class RendererMixin(
         if instance:
             for name, label in self.get_display_fields(facade, allowed_fields).items():
                 label = self.format_label(label)
-                display_method = getattr(facade, "get_field_{}_display".format(name), None)
+                display_method = getattr(facade, f"get_field_{name}_display", None)
                 value = getattr(instance, name, None)
 
                 if display_method and callable(display_method):
                     value = display_method(instance, value, False)
+                elif isinstance(value, datetime.datetime):
+                    value = localtime(value).strftime("%Y-%m-%d %H:%M:%S %Z")
                 else:
-                    if isinstance(value, datetime.datetime):
-                        value = localtime(value).strftime("%Y-%m-%d %H:%M:%S %Z")
-                    else:
-                        value = str(value)
+                    value = str(value)
 
                 data.append((
                     self.header_color(label),
@@ -254,14 +255,15 @@ class RendererMixin(
 
                 if field_info['multiple']:
                     instances = { x.get_id(): x for x in value.all() }
-                    relation_data = self.render_relation_overview(facade, field_info['name'], instances)
-                    if relation_data:
+                    if relation_data := self.render_relation_overview(
+                        facade, field_info['name'], instances
+                    ):
                         value = display.format_data(relation_data, width = self.display_width)
                         data.append((label, value + "\n"))
                 else:
                     data.append((label, self.relation_color(str(value)) + "\n"))
         else:
-            self.error("{} {} does not exist".format(facade.name.title(), name))
+            self.error(f"{facade.name.title()} {name} does not exist")
 
         return data
 

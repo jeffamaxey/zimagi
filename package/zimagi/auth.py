@@ -19,8 +19,5 @@ class ClientTokenAuthentication(auth.AuthBase):
             self.token = self.client.cipher.encrypt(self.token).decode('utf-8')
             self.encrypted = True
 
-        request.headers['Authorization'] = "Token {} {}".format(
-            self.user,
-            self.token
-        )
+        request.headers['Authorization'] = f"Token {self.user} {self.token}"
         return request

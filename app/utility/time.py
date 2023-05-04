@@ -15,11 +15,7 @@ class Time(object):
         spacer = ' '
     ):
         self.date_format = date_format
-        self.time_format = "{}{}{}".format(
-            self.date_format,
-            spacer,
-            time_format
-        )
+        self.time_format = f"{self.date_format}{spacer}{time_format}"
 
 
     @property
@@ -58,9 +54,7 @@ class Time(object):
         new_date_time = self.to_datetime(date_time) + datetime.timedelta(**{
             unit_type: units
         })
-        if to_string:
-            return self.to_string(new_date_time)
-        return new_date_time
+        return self.to_string(new_date_time) if to_string else new_date_time
 
     def distance(self, date_time1, date_time2, unit_type = 'days', include_direction = False):
         date_time1 = self.to_datetime(date_time1)
@@ -73,8 +67,6 @@ class Time(object):
 
     def generate(self, start_date_time, end_date_time = None, unit_type = 'days', units = None):
         start_date_time = self.to_datetime(start_date_time)
-        times = []
-
         if end_date_time is None:
             if units is None:
                 end_date_time = self.now
@@ -86,15 +78,16 @@ class Time(object):
         else:
             end_date_time = self.to_datetime(end_date_time)
 
-        for index in range(self.distance(start_date_time, end_date_time, unit_type = unit_type) + 1):
-            times.append(self.shift(start_date_time, index,
-                unit_type = unit_type,
-                to_string = True
-            ))
-        return times
+        return [
+            self.shift(start_date_time, index, unit_type=unit_type, to_string=True)
+            for index in range(
+                self.distance(start_date_time, end_date_time, unit_type=unit_type)
+                + 1
+            )
+        ]
 
 
     def is_dst(self, date_time):
         non_dst = datetime.datetime(year = date_time.year, month = 1, day = 1)
         non_dst_tz_aware = non_dst.astimezone(get_current_timezone())
-        return not (non_dst_tz_aware.utcoffset() == date_time.utcoffset())
+        return non_dst_tz_aware.utcoffset() != date_time.utcoffset()

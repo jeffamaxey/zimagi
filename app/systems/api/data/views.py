@@ -142,21 +142,25 @@ class BaseDataViewSet(ModelViewSet):
 
 
     def validate_parameters(self, request, action):
-        parameter_schema = {}
-        not_found = []
-
-        for parameter_info in self.schema.get_filter_parameters(request.path, action):
-            if parameter_info['in'] == 'query':
-                parameter_schema[parameter_info['name']] = parameter_info['schema']['type']
-
-        for parameter in filters.get_filter_parameters(request.query_params, action in ('json', 'csv')):
-            if parameter not in parameter_schema:
-                not_found.append({
-                    'parameter': parameter,
-                    'similar': rank_similar(parameter_schema.keys(), parameter, data = parameter_schema)
-                })
-
-        if not_found:
+        parameter_schema = {
+            parameter_info['name']: parameter_info['schema']['type']
+            for parameter_info in self.schema.get_filter_parameters(
+                request.path, action
+            )
+            if parameter_info['in'] == 'query'
+        }
+        if not_found := [
+            {
+                'parameter': parameter,
+                'similar': rank_similar(
+                    parameter_schema.keys(), parameter, data=parameter_schema
+                ),
+            }
+            for parameter in filters.get_filter_parameters(
+                request.query_params, action in ('json', 'csv')
+            )
+            if parameter not in parameter_schema
+        ]:
             return EncryptedResponse(
                 data = {
                     'detail': 'Requested parameters are not supported',
@@ -284,7 +288,7 @@ class BaseDataViewSet(ModelViewSet):
 
 
 def DataViewSet(facade):
-    class_name = "{}DataViewSet".format(facade.name.title())
+    class_name = f"{facade.name.title()}DataViewSet"
 
     if class_name in globals():
         return globals()[class_name]

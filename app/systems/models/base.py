@@ -43,7 +43,9 @@ def _override_model_new(cls, name, bases, attrs, **kwargs):
             attrs['Meta'] = type('Meta', (object,), {
                 'abstract': True
             })
-        logger.info("Converting model {} to an abstract object because it is not in INSTALLED_APPS".format(name))
+        logger.info(
+            f"Converting model {name} to an abstract object because it is not in INSTALLED_APPS"
+        )
         return _base_model_new(cls, name, bases, attrs, **kwargs)
 
 ModelBase.__new__ = _override_model_new
@@ -58,8 +60,7 @@ def format_field_choices(choices):
             else:
                 choice_list.append((choice, choice))
     else:
-        for value, label in choices.items():
-            choice_list.append((value, label))
+        choice_list.extend((value, label) for value, label in choices.items())
     return choice_list
 
 
@@ -79,8 +80,9 @@ def classify_parents(parent_classes):
     return map
 
 def classify_model(model_class_name):
-    module_name = model_index().model_class_path.get(model_class_name, None)
-    if module_name:
+    if module_name := model_index().model_class_path.get(
+        model_class_name, None
+    ):
         return get_spec_key(module_name)
     return 'unknown'
 
@@ -137,7 +139,7 @@ class BaseModelMixin(django.Model):
 
 
     def run_transaction(self, transaction_id, callback):
-        transaction_id = "model-transaction-{}-{}".format(self.facade.name, transaction_id)
+        transaction_id = f"model-transaction-{self.facade.name}-{transaction_id}"
         while True:
             try:
                 with check_mutex(transaction_id):
@@ -145,7 +147,7 @@ class BaseModelMixin(django.Model):
                     break
 
             except (MutexError, MutexTimeoutError) as error:
-                logger.debug("Failed to acquire transaction lock {}: {}".format(transaction_id, error))
+                logger.debug(f"Failed to acquire transaction lock {transaction_id}: {error}")
 
             time.sleep(0.1)
 
@@ -158,36 +160,33 @@ class BaseMetaModel(ModelBase):
         meta_info = attrs.get('_meta_info', {})
         meta_bases = []
 
-        logger.info("++++ Creating new model: {} <{}> {}".format(name, spec_key, bases))
+        logger.info(f"++++ Creating new model: {name} <{spec_key}> {bases}")
         for field, value in meta_info.items():
-            logger.debug(" init meta > {} - {}".format(field, value))
+            logger.debug(f" init meta > {field} - {value}")
 
         for key in ('data', 'data_mixins', 'data_base', 'base'):
             for parent in parent_map.get(key, []):
-                if key in ('base', 'data_base'):
-                    if getattr(parent, 'Meta', None):
-                        meta_bases.append(parent.Meta)
+                if key in ('base', 'data_base') and getattr(parent, 'Meta', None):
+                    meta_bases.append(parent.Meta)
 
                 for field, value in getattr(parent, '_meta_info', {}).items():
                     if field[0] != '_' and field not in ('abstract', 'db_table'):
                         meta_info.setdefault(field, value)
 
-        if spec_key == 'data' and not check_dynamic(name):
-            meta_info['abstract'] = False
-        else:
-            meta_info['abstract'] = True
-
+        meta_info['abstract'] = bool(spec_key != 'data' or check_dynamic(name))
         if not meta_info['abstract']:
             spec = model_index().spec['data'][meta_info['data_name']]
             app_name = spec.get('app', meta_info['data_name'])
             data_info = model_index().module_map['data'][app_name]
-            meta_info['db_table'] = "{}_{}".format(data_info.module.replace('-', '_'), meta_info['data_name'])
+            meta_info[
+                'db_table'
+            ] = f"{data_info.module.replace('-', '_')}_{meta_info['data_name']}"
 
         attrs['Meta'] = type('Meta', tuple(meta_bases), meta_info)
 
         for field in dir(attrs['Meta']):
             if field[0] != '_':
-                logger.debug(" final meta > {} - {}".format(field, getattr(attrs['Meta'], field)))
+                logger.debug(f" final meta > {field} - {getattr(attrs['Meta'], field)}")
 
         return super().__new__(cls, name, bases, attrs, **kwargs)
 
@@ -206,7 +205,9 @@ class BaseMetaModel(ModelBase):
         elif getattr(module, dynamic_facade_class_name, None):
             facade_class = getattr(module, dynamic_facade_class_name)
         else:
-            raise FacadeNotExistsError("Neither dynamic or coded facades exist for model {}".format(class_name))
+            raise FacadeNotExistsError(
+                f"Neither dynamic or coded facades exist for model {class_name}"
+            )
         return facade_class
 
     @property

@@ -64,22 +64,16 @@ class Collection(object):
 
 
     def __getitem__(self, name):
-        if name not in self.__dict__:
-            return None
-        return self.__dict__[name]
+        return None if name not in self.__dict__ else self.__dict__[name]
 
     def __getattr__(self, name):
         return self.__getitem__(name)
 
     def get(self, name, default = None):
-        if name not in self.__dict__:
-            return default
-        return self.__dict__[name]
+        return default if name not in self.__dict__ else self.__dict__[name]
 
     def check(self, name):
-        if name in self.__dict__:
-            return True
-        return False
+        return name in self.__dict__
 
 
     def export(self):
@@ -122,10 +116,7 @@ class RecursiveCollection(Collection):
         conversion = data
 
         if isinstance(data, (list, tuple)):
-            conversion = []
-            for value in data:
-                conversion.append(self._create_collections(value))
-
+            conversion = [self._create_collections(value) for value in data]
         elif isinstance(data, dict):
             conversion = RecursiveCollection(**data)
 
@@ -182,9 +173,7 @@ def env_value(data):
         for key, value in data.items():
             data[key] = env_value(value)
     elif isinstance(data, (list, tuple)):
-        values = []
-        for value in data:
-            values.append(env_value(value))
+        values = [env_value(value) for value in data]
         data = ",".join(values)
     else:
         data = str(data)
@@ -237,9 +226,7 @@ def get_dict_combinations(data):
     fields = sorted(data)
     combos = []
     for combo_values in itertools.product(*(ensure_list(data[name]) for name in fields)):
-        combo_data = {}
-        for index, field in enumerate(fields):
-            combo_data[field] = combo_values[index]
+        combo_data = {field: combo_values[index] for index, field in enumerate(fields)}
         combos.append(combo_data)
     return combos
 
@@ -259,32 +246,33 @@ def number(data):
 
 
 def format_value(type, value):
-    if value is not None:
-        if type == 'dict':
-            if isinstance(value, str):
-                value = load_json(value) if value != '' else {}
+    if type == 'bool':
+        if value is not None:
+            value = (
+                value != ''
+                and not re.match(r'^(false|no)$', value, re.IGNORECASE)
+                if isinstance(value, str)
+                else bool(value)
+            )
+    elif type == 'dict':
+        if value is not None and isinstance(value, str):
+            value = load_json(value) if value != '' else {}
 
-        elif type == 'list':
-            if isinstance(value, str):
-                value = [ x.strip() for x in value.split(',') ]
-            else:
-                value = list(value)
-
-        elif type == 'bool':
-            if isinstance(value, str):
-                if value == '' or re.match(r'^(false|no)$', value, re.IGNORECASE):
-                    value = False
-                else:
-                    value = True
-            else:
-                value = bool(value)
-
-        elif type == 'int':
-            value = int(value)
-
-        elif type == 'float':
+    elif type == 'float':
+        if value is not None:
             value = float(value)
 
+    elif type == 'int':
+        if value is not None:
+            value = int(value)
+
+    elif type == 'list':
+        if value is not None:
+            value = (
+                [x.strip() for x in value.split(',')]
+                if isinstance(value, str)
+                else list(value)
+            )
     return value
 
 
@@ -309,7 +297,7 @@ def get_identifier(values):
     if isinstance(values, (list, tuple)):
         values = [ str(item) for item in values ]
     elif isinstance(values, dict):
-        values = [ "{}:{}".format(key, values[key]) for key in sorted(values.keys()) ]
+        values = [f"{key}:{values[key]}" for key in sorted(values.keys())]
     else:
         values = [ str(values) ]
 
@@ -317,15 +305,18 @@ def get_identifier(values):
 
 
 def rank_similar(values, target, data = None, count = 10):
-    scores = {}
-    for value in values:
-        scores[value] = SequenceMatcher(None, target, value).ratio()
-
-    similar = [ value for value in dict(sorted(scores.items(), key = lambda item: item[1], reverse = True)).keys() ]
+    scores = {
+        value: SequenceMatcher(None, target, value).ratio() for value in values
+    }
+    similar = list(
+        dict(
+            sorted(scores.items(), key=lambda item: item[1], reverse=True)
+        ).keys()
+    )
     if data:
-        return { key: data.get(key, None) for key in similar[0:min(len(similar), count)] }
+        return {key: data.get(key, None) for key in similar[:min(len(similar), count)]}
 
-    return similar[0:min(len(similar), count)]
+    return similar[:min(len(similar), count)]
 
 
 def dependents(data, keys):

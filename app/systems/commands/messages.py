@@ -67,17 +67,16 @@ class AppMessage(TerminalMixin):
     def to_package(self):
         json_text = self.to_json()
         cipher_text = self.cipher.encrypt(json_text).decode(self.cipher.field_decoder)
-        package = dump_json({ 'package': cipher_text }) + "\n"
-        return package
+        return dump_json({ 'package': cipher_text }) + "\n"
 
 
     def format(self, debug = False, disable_color = False, width = None):
-        return "{}{}".format(self._format_prefix(disable_color), self.message)
+        return f"{self._format_prefix(disable_color)}{self.message}"
 
     def _format_prefix(self, disable_color):
         if self.prefix:
             prefix = self.prefix if disable_color else self.prefix_color(self.prefix)
-            return prefix + ' '
+            return f'{prefix} '
         else:
             return ''
 
@@ -118,11 +117,7 @@ class DataMessage(AppMessage):
             data = "\n{}".format(oyaml.dump(self.data, indent = 2))
 
         data = data if disable_color else self.value_color(data)
-        return "{}{}: {}".format(
-            self._format_prefix(disable_color),
-            self.message,
-            data
-        )
+        return f"{self._format_prefix(disable_color)}{self.message}: {data}"
 
 
 class InfoMessage(AppMessage):
@@ -133,21 +128,21 @@ class NoticeMessage(AppMessage):
 
     def format(self, debug = False, disable_color = False, width = None):
         message = self.message if disable_color else self.notice_color(self.message)
-        return "{}{}".format(self._format_prefix(disable_color), message)
+        return f"{self._format_prefix(disable_color)}{message}"
 
 
 class SuccessMessage(AppMessage):
 
     def format(self, debug = False, disable_color = False, width = None):
         message = self.message if disable_color else self.success_color(self.message)
-        return "{}{}".format(self._format_prefix(disable_color), message)
+        return f"{self._format_prefix(disable_color)}{message}"
 
 
 class WarningMessage(AppMessage):
 
     def format(self, debug = False, disable_color = False, width = None):
         message = self.message if disable_color else self.warning_color(self.message)
-        return "{}{}".format(self._format_prefix(disable_color), message)
+        return f"{self._format_prefix(disable_color)}{message}"
 
     def display(self, debug = False, disable_color = False, width = None):
         if not self.silent:
@@ -183,7 +178,7 @@ class ErrorMessage(AppMessage):
                 message,
                 "\n".join(traceback) if disable_color else self.traceback_color("\n".join(traceback))
             )
-        return "{}** {}".format(self._format_prefix(disable_color), message)
+        return f"{self._format_prefix(disable_color)}** {message}"
 
     def display(self, debug = False, disable_color = False, width = None, traceback = True):
         if not self.silent and self.message:

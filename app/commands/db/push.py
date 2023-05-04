@@ -8,4 +8,6 @@ class Push(Command('db.push')):
 
     def exec(self):
         self.db.load(self.options.get('db'), encrypted = False)
-        self.success("Database packages {} successfully pushed".format(",".join(self.db_packages)))
+        self.success(
+            f'Database packages {",".join(self.db_packages)} successfully pushed'
+        )

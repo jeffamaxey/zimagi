@@ -25,7 +25,7 @@ class DataPermission(permissions.BasePermission):
             return True
 
         model_name = view.queryset.model._meta.data_name
-        roles = settings.MANAGER.get_spec('data.{}.roles'.format(model_name))
+        roles = settings.MANAGER.get_spec(f'data.{model_name}.roles')
 
         groups = ['admin'] + ensure_list(roles.get('edit', []))
         if roles.get('view', None):

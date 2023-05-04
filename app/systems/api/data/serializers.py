@@ -91,7 +91,7 @@ class BaseItemSerializer(HyperlinkedModelSerializer):
 
 
 def LinkSerializer(facade):
-    class_name = "{}LinkSerializer".format(facade.name.title())
+    class_name = f"{facade.name.title()}LinkSerializer"
 
     if class_name in globals():
         return globals()[class_name]
@@ -106,7 +106,7 @@ def LinkSerializer(facade):
     return serializer
 
 def MetaSerializer(facade):
-    class_name = "{}MetaSerializer".format(facade.name.title())
+    class_name = f"{facade.name.title()}MetaSerializer"
 
     if class_name in globals():
         return globals()[class_name]
@@ -121,7 +121,7 @@ def MetaSerializer(facade):
     return serializer
 
 def SummarySerializer(facade, dynamic = True):
-    class_name = "{}SummarySerializer".format(facade.name.title())
+    class_name = f"{facade.name.title()}SummarySerializer"
 
     if class_name in globals():
         return globals()[class_name]
@@ -135,7 +135,7 @@ def SummarySerializer(facade, dynamic = True):
     return serializer
 
 def DetailSerializer(facade):
-    class_name = "{}DetailSerializer".format(facade.name.title())
+    class_name = f"{facade.name.title()}DetailSerializer"
 
     if class_name in globals():
         return globals()[class_name]

@@ -13,7 +13,7 @@ class Rotate(Command('user.rotate')):
         user.save()
 
         self.silent_data('name', user.name)
-        self.data("User {} token:".format(user.name), token, 'token')
+        self.data(f"User {user.name} token:", token, 'token')
 
     def postprocess(self, response):
         host = self.get_host()

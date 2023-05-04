@@ -23,8 +23,7 @@ def format_table(data, prefix = None):
     prefixed_rows = []
 
     if prefix:
-        for row in table_rows:
-            prefixed_rows.append("{}{}".format(prefix, row))
+        prefixed_rows.extend(f"{prefix}{row}" for row in table_rows)
     else:
         prefixed_rows = table_rows
 
@@ -119,16 +118,16 @@ def suppress_stdout():
 
 
 def display_class_info(klass, prefix = '', display_function = logger.info):
-    display_function("{}{}".format(prefix, klass.__name__))
+    display_function(f"{prefix}{klass.__name__}")
     for parent in klass.__bases__:
-        display_class_info(parent, "{}  << ".format(prefix), display_function)
+        display_class_info(parent, f"{prefix}  << ", display_function)
 
-    display_function("{} properties:".format(prefix))
+    display_function(f"{prefix} properties:")
     for attribute in dir(klass):
         if not attribute.startswith('__') and not callable(getattr(klass, attribute)):
-            display_function("{}  ->  {}".format(prefix, attribute))
+            display_function(f"{prefix}  ->  {attribute}")
 
-    display_function("{} methods:".format(prefix))
+    display_function(f"{prefix} methods:")
     for attribute in dir(klass):
         if not attribute.startswith('__') and callable(getattr(klass, attribute)):
-            display_function("{}  **  {}".format(prefix, attribute))
+            display_function(f"{prefix}  **  {attribute}")

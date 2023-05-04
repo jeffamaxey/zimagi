@@ -20,13 +20,13 @@ class TempDir(FileSystem):
 
     def __init__(self):
         self.name = self._generate_name()
-        super().__init__("/tmp/{}".format(self.name))
+        super().__init__(f"/tmp/{self.name}")
 
 
     def _generate_name(self, length = 5):
         chars = string.ascii_lowercase + string.digits
         random_text = ''.join(random.SystemRandom().choice(chars) for _ in range(length))
-        return "{}-{}".format(datetime.datetime.now().strftime("%Y%m%d%H%M%S"), random_text)
+        return f'{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}-{random_text}'
 
 
     def save(self, content, name = None, directory = None, extension = None, binary = False):

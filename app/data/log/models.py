@@ -28,10 +28,7 @@ class Log(Model('log')):
 
     def save(self, *args, **kwargs):
         if not self.name:
-            self.name = "{}{}x".format(
-                now().strftime("%Y%m%d%H%M%S"),
-                self.facade.generate_token(5)
-            )
+            self.name = f'{now().strftime("%Y%m%d%H%M%S")}{self.facade.generate_token(5)}x'
         super().save(*args, **kwargs)
 
 
@@ -64,4 +61,4 @@ class Log(Model('log')):
 class LogMessage(Model('log_message')):
 
     def __str__(self):
-        return "{} ({})".format(self.log.command, self.data)
+        return f"{self.log.command} ({self.data})"

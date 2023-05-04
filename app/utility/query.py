@@ -11,9 +11,8 @@ def get_queryset(instance, relation):
 
     if is_list and len(relation) > 1:
         return get_queryset(getattr(instance, relation[0]), relation[1:])
-    else:
-        relation = relation[0] if is_list else relation
-        return getattr(instance, relation)
+    relation = relation[0] if is_list else relation
+    return getattr(instance, relation)
 
 
 def init_fields(fields, default = None, remove = None):

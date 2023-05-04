@@ -21,11 +21,7 @@ class SingleCSVValue(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string = None):
         values = values[0] if isinstance(values, (list, tuple)) else values
-        arg_values = []
-
-        for value in values.split(','):
-            arg_values.append(self.inner_type(value))
-
+        arg_values = [self.inner_type(value) for value in values.split(',')]
         setattr(namespace, self.dest, arg_values)
 
 class MultiValue(argparse.Action):
@@ -34,13 +30,10 @@ class MultiValue(argparse.Action):
         self.default = ensure_list(self.default) if self.default else []
 
     def __call__(self, parser, namespace, values, option_string = None):
-        arg_values = []
         if not values:
             values = []
 
-        for value in ensure_list(values):
-            arg_values.append(self.type(value))
-
+        arg_values = [self.type(value) for value in ensure_list(values)]
         setattr(namespace, self.dest, arg_values)
 
 class KeyValues(argparse.Action):
@@ -73,7 +66,7 @@ def get_type(type):
     elif type == 'dict':
         return dict
     else:
-        raise CommandError("Unsupported field type: {}".format(type))
+        raise CommandError(f"Unsupported field type: {type}")
 
 def get_field(type, **options):
     if type == str:
@@ -89,7 +82,7 @@ def get_field(type, **options):
     elif type == dict:
         return serializers.DictField(**options)
     else:
-        raise CommandError("Unsupported field type: {}".format(type))
+        raise CommandError(f"Unsupported field type: {type}")
 
 
 def parse_var(parser, name, type, help_text, optional = False, default = None, choices = None):
@@ -123,11 +116,12 @@ def parse_vars(parser, name, type, help_text, optional = False, default = None):
             default = default,
             help = help_text
         )
-    return get_field(list,
-        required = not optional,
-        label = "JSON encoded {}".format(name),
-        help_text = re.sub(r'\s+', ' ', help_text),
-        child = get_field(type)
+    return get_field(
+        list,
+        required=not optional,
+        label=f"JSON encoded {name}",
+        help_text=re.sub(r'\s+', ' ', help_text),
+        child=get_field(type),
     )
 
 def parse_option(parser, name, flags, type, help_text, value_label = None, default = None, choices = None):
@@ -156,18 +150,19 @@ def parse_csv_option(parser, name, flags, type, help_text, value_label = None, d
         flags = [flags] if isinstance(flags, str) else flags
         parser.add_argument(
             *flags,
-            dest = name,
-            action = SingleCSVValue,
-            default = default,
-            type = str,
-            inner_type = type,
-            metavar = "{},...".format(value_label),
-            help = help_text
+            dest=name,
+            action=SingleCSVValue,
+            default=default,
+            type=str,
+            inner_type=type,
+            metavar=f"{value_label},...",
+            help=help_text,
         )
-    return get_field(list,
-        required = False,
-        label = "Comma separated {}".format(name),
-        help_text = re.sub(r'\s+', ' ', help_text)
+    return get_field(
+        list,
+        required=False,
+        label=f"Comma separated {name}",
+        help_text=re.sub(r'\s+', ' ', help_text),
     )
 
 def parse_options(parser, name, flags, type, help_text, value_label = None, default = None, choices = None):
@@ -185,10 +180,11 @@ def parse_options(parser, name, flags, type, help_text, value_label = None, defa
             metavar = value_label,
             help = help_text
         )
-    return get_field(list,
-        required = False,
-        label = "JSON encoded {}".format(name),
-        help_text = re.sub(r'\s+', ' ', help_text)
+    return get_field(
+        list,
+        required=False,
+        label=f"JSON encoded {name}",
+        help_text=re.sub(r'\s+', ' ', help_text),
     )
 
 def parse_bool(parser, name, flags, help_text, default = None):
@@ -217,8 +213,9 @@ def parse_key_values(parser, name, help_text, value_label = None, optional = Fal
             metavar = value_label,
             help = help_text
         )
-    return get_field(dict,
-        required = not optional,
-        label = "JSON encoded {}".format(name),
-        help_text = re.sub(r'\s+', ' ', help_text)
+    return get_field(
+        dict,
+        required=not optional,
+        label=f"JSON encoded {name}",
+        help_text=re.sub(r'\s+', ' ', help_text),
     )

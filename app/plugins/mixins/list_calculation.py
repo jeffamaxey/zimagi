@@ -9,7 +9,10 @@ class ListCalculationMixin(ProviderMixin('list_calculation')):
 
         list_data = [value for value in list(list_data) if value is not None]
 
-        if len(list_data) == 0 or (self.field_min_values is not None and len(list_data) < self.field_min_values):
+        if not list_data or (
+            self.field_min_values is not None
+            and len(list_data) < self.field_min_values
+        ):
             self.set_null()
 
         return reversed(list_data) if self.field_reverse else list_data

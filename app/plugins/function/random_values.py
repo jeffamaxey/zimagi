@@ -10,6 +10,4 @@ class Provider(BaseProvider('function', 'random_values')):
         values = ensure_list(list_value)
         random.shuffle(values)
 
-        if limit:
-            return values[:min(int(limit), len(values))]
-        return values
+        return values[:min(int(limit), len(values))] if limit else values

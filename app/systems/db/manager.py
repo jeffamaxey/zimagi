@@ -82,14 +82,15 @@ class DatabaseManager(object):
                 table_names = [model._meta.db_table for model in models]
                 self.connection.check_constraints(table_names = table_names)
 
-                sequence_sql = self.connection.ops.sequence_reset_sql(no_style(), models)
-                if sequence_sql:
+                if sequence_sql := self.connection.ops.sequence_reset_sql(
+                    no_style(), models
+                ):
                     with self.connection.cursor() as cursor:
                         for line in sequence_sql:
                             cursor.execute(line)
 
         except Exception as e:
-            e.args = ("Problem installing data: {}".format(e),)
+            e.args = (f"Problem installing data: {e}", )
             logger.exception("Exception: %s", e)
             raise e
 
@@ -118,7 +119,7 @@ class DatabaseManager(object):
                 str_data = Cipher.get('data').encrypt(str_data)
 
         except Exception as e:
-            e.args = ("Problem saving data: {}".format(e),)
+            e.args = (f"Problem saving data: {e}", )
             logger.exception("Exception: %s", e)
             raise
 
@@ -131,6 +132,5 @@ class DatabaseManager(object):
         return self._save(packages, encrypted)
 
     def save_file(self, file_path, packages = settings.DB_PACKAGE_ALL_NAME, encrypted = True):
-        str_data = self._save(packages, encrypted)
-        if str_data:
+        if str_data := self._save(packages, encrypted):
             save_file(file_path, str_data, encrypted)

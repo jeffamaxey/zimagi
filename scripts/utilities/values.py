@@ -8,28 +8,18 @@ import yaml
 #-------------------------------------------------------------------------------
 
 values_file_path = sys.argv[1]
-helm_values = {}
-
 if not values_file_path:
     raise Exception("Helm values file path must be specified")
 
-# Set service credentials
-helm_values['postgresql'] = {
-    'postgresqlUsername': os.environ['ZIMAGI_POSTGRES_USER'],
-    'postgresqlPassword': os.environ['ZIMAGI_POSTGRES_PASSWORD'],
-    'postgresqlDatabase': os.environ['ZIMAGI_POSTGRES_DB']
+helm_values = {
+    'postgresql': {
+        'postgresqlUsername': os.environ['ZIMAGI_POSTGRES_USER'],
+        'postgresqlPassword': os.environ['ZIMAGI_POSTGRES_PASSWORD'],
+        'postgresqlDatabase': os.environ['ZIMAGI_POSTGRES_DB'],
+    },
+    'redis': {'auth': {'password': os.environ['ZIMAGI_REDIS_PASSWORD']}},
+    'persistenceFlavour': {'minikube': True},
 }
-helm_values['redis'] = {
-    'auth': {
-        'password': os.environ['ZIMAGI_REDIS_PASSWORD']
-    }
-}
-helm_values['persistenceFlavour'] = {
-    'minikube': True
-}
-
-# Generate environment variables
-env_values = []
 ignore_variables = [
     'ZIMAGI_POSTGRES_USER',
     'ZIMAGI_POSTGRES_PASSWORD',
@@ -40,13 +30,11 @@ ignore_variables = [
     'ZIMAGI_KEY',
     'ZIMAGI_CERT'
 ]
-for name, value in os.environ.items():
-    if re.match(r'^ZIMAGI_[_A-Z0-9]+$', name) and name not in ignore_variables:
-        env_values.append({
-            'name': name,
-            'value': value
-        })
-
+env_values = [
+    {'name': name, 'value': value}
+    for name, value in os.environ.items()
+    if re.match(r'^ZIMAGI_[_A-Z0-9]+$', name) and name not in ignore_variables
+]
 # Set service environment variables
 for service_tag in ('scheduler', 'worker', 'commandApi', 'dataApi'):
     helm_values[service_tag] = {

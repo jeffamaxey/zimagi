@@ -8,7 +8,7 @@ class ProfileComponent(profile.BaseProfileComponent):
 
     def run(self, name, help):
         if not help:
-            self.command.error("Role {} help string must be provided".format(name))
+            self.command.error(f"Role {name} help string must be provided")
 
         self.exec('template generate',
             module_name = self.profile.module.instance.name,

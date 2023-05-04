@@ -90,24 +90,24 @@ class ScheduledTask(
         selected_schedule_types = [s for s in schedule_types
                                    if getattr(self, s)]
 
-        if len(selected_schedule_types) == 0:
+        if not selected_schedule_types:
             raise ValidationError(
                 'One of clocked, interval, crontab, or solar '
                 'must be set.'
             )
 
-        err_msg = 'Only one of clocked, interval, crontab, '\
-            'or solar must be set'
         if len(selected_schedule_types) > 1:
-            error_info = {}
-            for selected_schedule_type in selected_schedule_types:
-                error_info[selected_schedule_type] = [err_msg]
+            err_msg = 'Only one of clocked, interval, crontab, '\
+                    'or solar must be set'
+            error_info = {
+                selected_schedule_type: [err_msg]
+                for selected_schedule_type in selected_schedule_types
+            }
             raise ValidationError(error_info)
 
         # clocked must be one off task
         if self.clocked and not self.one_off:
-            err_msg = 'clocked must be one off, one_off must set True'
-            raise ValidationError(err_msg)
+            raise ValidationError('clocked must be one off, one_off must set True')
 
     def save(self, *args, **kwargs):
         self.exchange = self.exchange or None

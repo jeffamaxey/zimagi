@@ -29,9 +29,7 @@ class SpecNotFound(Exception):
 
 
 def get_dynamic_class_name(class_name):
-    if check_dynamic(class_name):
-        return class_name
-    return "{}Dynamic".format(class_name)
+    return class_name if check_dynamic(class_name) else f"{class_name}Dynamic"
 
 def check_dynamic(class_name):
     return class_name.endswith('Dynamic')
@@ -40,28 +38,24 @@ def get_stored_class_name(class_name):
     return re.sub(r'Dynamic$', '', class_name)
 
 def get_facade_class_name(class_name):
-    if check_facade(class_name):
-        return class_name
-    return "{}Facade".format(class_name)
+    return class_name if check_facade(class_name) else f"{class_name}Facade"
 
 def check_facade(class_name):
     return class_name.endswith('Facade') or class_name.endswith('FacadeDynamic')
 
 
 def get_model_name(name, spec = None):
-    if spec and 'class' in spec:
-        return spec['class']
-    return name.title()
+    return spec['class'] if spec and 'class' in spec else name.title()
 
 def get_module_name(key, name):
     if key == 'data_base':
-        module_path = "data.base.{}".format(name)
+        module_path = f"data.base.{name}"
     elif key == 'data_mixins':
-        module_path = "data.mixins.{}".format(name)
+        module_path = f"data.mixins.{name}"
     elif key == 'data':
-        module_path = "data.{}.models".format(name)
+        module_path = f"data.{name}.models"
     else:
-        raise SpecNotFound("Key {} is not supported for data: {}".format(key, name))
+        raise SpecNotFound(f"Key {key} is not supported for data: {name}")
     return module_path
 
 def get_spec_key(module_name):
@@ -72,7 +66,7 @@ def get_spec_key(module_name):
     elif re.match(r'^data.[^\.]+.models$', module_name):
         key = 'data'
     else:
-        raise SpecNotFound("Key for module {} was not found for data".format(module_name))
+        raise SpecNotFound(f"Key for module {module_name} was not found for data")
     return key
 
 
@@ -95,7 +89,7 @@ class ModelGenerator(object):
             self.spec = self.full_spec[key].get(name, None)
             self.app_name = self.spec.get('app', name)
         except Exception as e:
-            raise ModelNotExistsError("Model specification {} {} does not exist".format(key, name))
+            raise ModelNotExistsError(f"Model specification {key} {name} does not exist")
 
         self.class_name = get_model_name(name, self.spec)
         self.dynamic_class_name = get_dynamic_class_name(self.class_name)
@@ -143,14 +137,11 @@ class ModelGenerator(object):
         if isinstance(klass, str):
             try:
                 spec = self.full_spec['data'][klass]
-                return "{}.{}".format(
-                    spec.get('app', name),
-                    get_model_name(klass, spec)
-                )
+                return f"{spec.get('app', name)}.{get_model_name(klass, spec)}"
             except Exception as e:
                 logger.error(e)
 
-            raise ModelNotExistsError("Base class for relation {} does not exist".format(klass))
+            raise ModelNotExistsError(f"Base class for relation {klass} does not exist")
         return klass.__name__
 
 
@@ -303,9 +294,7 @@ class ModelGenerator(object):
         model.__module__ = self.module_path
         setattr(self.module, self.dynamic_class_name, model)
 
-        if self.ensure_exists:
-            return self.create_overlay(model)
-        return model
+        return self.create_overlay(model) if self.ensure_exists else model
 
     def create_overlay(self, model):
         if getattr(self.module, self.class_name, None):
@@ -347,20 +336,21 @@ class ModelGenerator(object):
 
 
     def ensure_model_files(self):
-        if self.key == 'data':
-            data_info = settings.MANAGER.index.module_map['data'][self.app_name]
-            model_dir = os.path.join(data_info.path, 'data', self.app_name)
-            migration_dir = os.path.join(model_dir, 'migrations')
+        if self.key != 'data':
+            return
+        data_info = settings.MANAGER.index.module_map['data'][self.app_name]
+        model_dir = os.path.join(data_info.path, 'data', self.app_name)
+        migration_dir = os.path.join(model_dir, 'migrations')
 
-            pathlib.Path(migration_dir).mkdir(parents = True, exist_ok = True)
+        pathlib.Path(migration_dir).mkdir(parents = True, exist_ok = True)
 
-            model_file = os.path.join(model_dir, 'models.py')
-            if not os.path.isfile(model_file):
-                pathlib.Path(model_file).touch()
+        model_file = os.path.join(model_dir, 'models.py')
+        if not os.path.isfile(model_file):
+            pathlib.Path(model_file).touch()
 
-            migration_init_file = os.path.join(migration_dir, '__init__.py')
-            if not os.path.isfile(migration_init_file):
-                pathlib.Path(migration_init_file).touch()
+        migration_init_file = os.path.join(migration_dir, '__init__.py')
+        if not os.path.isfile(migration_init_file):
+            pathlib.Path(migration_init_file).touch()
 
 
     def parse_values(self, item):
@@ -400,7 +390,9 @@ def DerivedAbstractModel(module, model_name, **fields):
 
     model = getattr(module, model_name)
     if not model:
-        raise ModelNotExistsError("Model {} does not exist in module {}".format(model_name, module.__name__))
+        raise ModelNotExistsError(
+            f"Model {model_name} does not exist in module {module.__name__}"
+        )
 
     attributes = dict(model.__dict__)
     for field in model._meta.local_fields:
@@ -419,12 +411,13 @@ def DerivedAbstractModel(module, model_name, **fields):
 
 def AbstractModel(key, name, **options):
     model = ModelGenerator(key, name, **options)
-    klass = model.klass
-    if klass:
+    if klass := model.klass:
         return klass
 
     if not model.spec:
-        raise ModelNotExistsError("Abstract model {} does not exist yet".format(model.class_name))
+        raise ModelNotExistsError(
+            f"Abstract model {model.class_name} does not exist yet"
+        )
 
     return _create_model(model)
 
@@ -432,12 +425,11 @@ def Model(name, ensure_exists = False):
     model = ModelGenerator('data', name,
         ensure_exists = ensure_exists
     )
-    klass = model.klass
-    if klass:
+    if klass := model.klass:
         return klass
 
     if not model.spec:
-        raise ModelNotExistsError("Model {} does not exist yet".format(model.class_name))
+        raise ModelNotExistsError(f"Model {model.class_name} does not exist yet")
 
     return _create_model(model)
 
@@ -504,51 +496,50 @@ def _create_model(model):
 
 
 def display_model_info(klass, prefix = '', display_function = logger.info):
-    display_function("{}{}".format(prefix, klass.__name__))
+    display_function(f"{prefix}{klass.__name__}")
     for parent in klass.__bases__:
-        display_model_info(parent, "{}  << ".format(prefix), display_function)
+        display_model_info(parent, f"{prefix}  << ", display_function)
 
     if getattr(klass, 'facade_class', None):
-        display_model_info(klass.facade_class, "{}  ** ".format(prefix), display_function)
+        display_model_info(klass.facade_class, f"{prefix}  ** ", display_function)
 
     if getattr(klass, '_meta', None):
         meta = klass._meta
-        field_names = []
-        for field in meta.fields:
-            field_names.append(field.name)
-
+        field_names = [field.name for field in meta.fields]
         dynamic_names = []
         if getattr(meta, 'dynamic_fields', None):
             dynamic_names = meta.dynamic_fields
 
-        relation_names = []
-        for field in meta.get_fields():
-            if field.name not in field_names:
-                relation_names.append(field.name)
-
-        display_function("{} name: {}".format(prefix, meta.verbose_name))
-        display_function("{} plural: {}".format(prefix, meta.verbose_name_plural))
+        relation_names = [
+            field.name
+            for field in meta.get_fields()
+            if field.name not in field_names
+        ]
+        display_function(f"{prefix} name: {meta.verbose_name}")
+        display_function(f"{prefix} plural: {meta.verbose_name_plural}")
 
         if getattr(meta, 'db_table', None):
-            display_function("{} db table: {}".format(prefix, meta.db_table))
+            display_function(f"{prefix} db table: {meta.db_table}")
 
         if getattr(meta, 'pk', None):
-            display_function("{} pk: {}".format(prefix, meta.pk.name))
+            display_function(f"{prefix} pk: {meta.pk.name}")
         else:
-            display_function("{} pk: NOT DEFINED".format(prefix))
+            display_function(f"{prefix} pk: NOT DEFINED")
 
         if getattr(meta, 'scope_process', None):
-            display_function("{} scope process: {}".format(prefix, meta.scope_process))
+            display_function(f"{prefix} scope process: {meta.scope_process}")
 
         if getattr(meta, 'scope', None):
-            display_function("{} scope: {}".format(prefix, meta.scope))
+            display_function(f"{prefix} scope: {meta.scope}")
 
         for field in meta.local_fields:
             related_info = ''
             if getattr(field, 'related_model', None):
-                related_info = " -> {}".format(field.related_model)
-            display_function("{} - field: {} <{}>{}".format(prefix, field.name, field.__class__.__name__, related_info))
+                related_info = f" -> {field.related_model}"
+            display_function(
+                f"{prefix} - field: {field.name} <{field.__class__.__name__}>{related_info}"
+            )
 
-        display_function("{} -> stored: {}".format(prefix, ", ".join(field_names)))
-        display_function("{} -> dynamic: {}".format(prefix, ", ".join(dynamic_names)))
-        display_function("{} -> relations: {}".format(prefix, ", ".join(relation_names)))
+        display_function(f'{prefix} -> stored: {", ".join(field_names)}')
+        display_function(f'{prefix} -> dynamic: {", ".join(dynamic_names)}')
+        display_function(f'{prefix} -> relations: {", ".join(relation_names)}')

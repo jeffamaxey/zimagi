@@ -22,7 +22,7 @@ class Provider(BaseProvider('parser', 'config')):
                 self.variables[config.name] = config.value
 
     def check(self, name):
-        return True if name in self.variables else False
+        return name in self.variables
 
     def set(self, name, value):
         self.variables[name] = value
@@ -40,7 +40,7 @@ class Provider(BaseProvider('parser', 'config')):
         else:
             for ref_match in re.finditer(self.variable_value_pattern, value):
                 formatter = ref_match.group(1)
-                variable_value = self.parse_variable("@{}".format(ref_match.group(2)), config)
+                variable_value = self.parse_variable(f"@{ref_match.group(2)}", config)
                 if (formatter and formatter == '>>') or isinstance(variable_value, dict):
                     variable_value = dump_json(variable_value)
                 elif isinstance(variable_value, (list, tuple)):
@@ -51,11 +51,10 @@ class Provider(BaseProvider('parser', 'config')):
         return value
 
     def parse_variable(self, value, config):
-        config_match = re.search(self.variable_pattern, value)
-        if config_match:
+        if config_match := re.search(self.variable_pattern, value):
             variables = {**self.variables.export(), **config.get('config_overrides', {})}
-            new_value = config_match.group(1)
-            key = config_match.group(2)
+            new_value = config_match[1]
+            key = config_match[2]
 
             if new_value in variables:
                 data = variables[new_value]

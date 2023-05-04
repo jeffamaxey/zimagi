@@ -8,7 +8,7 @@ import binascii
 class BaseProvider(BasePlugin('encryption')):
 
     @classmethod
-    def generate_key(self):
+    def generate_key(cls):
         size = 100
         return binascii.hexlify(os.urandom(size)).decode()[:size]
 
@@ -20,9 +20,8 @@ class BaseProvider(BasePlugin('encryption')):
             options = {}
 
         if initialize:
-            if options.get('key', None):
-                if os.path.isfile(options['key']):
-                    options['key'] = load_file(options['key'])
+            if options.get('key', None) and os.path.isfile(options['key']):
+                options['key'] = load_file(options['key'])
 
             self.initialize(options)
 

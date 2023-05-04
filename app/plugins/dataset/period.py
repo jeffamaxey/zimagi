@@ -46,18 +46,20 @@ class Provider(BaseProvider('dataset', 'period')):
 
         time = self.get_time_processor().to_datetime(time)
         if recent:
-            filters["{}__lte".format(index_field)] = time
+            filters[f"{index_field}__lte"] = time
         else:
             filters[index_field] = time
 
-        return self.command.get_data_item(data_type, *fields,
-            filters = filters,
-            order = "-{}".format(index_field),
-            dataframe = True,
-            dataframe_index_field = index_field,
-            dataframe_merge_fields = merge_fields,
-            dataframe_remove_fields = remove_fields,
-            time_index = True
+        return self.command.get_data_item(
+            data_type,
+            *fields,
+            filters=filters,
+            order=f"-{index_field}",
+            dataframe=True,
+            dataframe_index_field=index_field,
+            dataframe_merge_fields=merge_fields,
+            dataframe_remove_fields=remove_fields,
+            time_index=True,
         )
 
     def get_period(self, data_type,
@@ -92,7 +94,7 @@ class Provider(BaseProvider('dataset', 'period')):
             else:
                 times = [start_time, time_processor.now]
 
-            range_filters["{}__range".format(index_field)] = sorted(times)
+            range_filters[f"{index_field}__range"] = sorted(times)
 
         data = self.command.get_data_set(data_type, *fields,
             filters = range_filters,
@@ -142,8 +144,8 @@ class Provider(BaseProvider('dataset', 'period')):
     ):
         required_types = ensure_list(required_types) if required_types else None
         time_processor = self.get_time_processor()
-        required_columns = list()
-        periods = list()
+        required_columns = []
+        periods = []
         field_map = {}
 
         if start_time:
@@ -163,9 +165,9 @@ class Provider(BaseProvider('dataset', 'period')):
             prefix = params.pop('column_prefix', column_prefix)
             functions = params.pop('processors', processors)
 
-            period_method = getattr(self, "get_{}_period".format(query_type), None)
+            period_method = getattr(self, f"get_{query_type}_period", None)
             if not period_method and data_type != query_type:
-                period_method = getattr(self, "get_{}_period".format(data_type), None)
+                period_method = getattr(self, f"get_{data_type}_period", None)
 
             method_params = {
                 'index_field': index_field,
@@ -184,7 +186,7 @@ class Provider(BaseProvider('dataset', 'period')):
                 data = self.get_period(data_type, **method_params)
 
             if prefix:
-                data.columns = ["{}_{}".format(query_type, column) for column in data.columns]
+                data.columns = [f"{query_type}_{column}" for column in data.columns]
 
             if functions:
                 for function in functions:

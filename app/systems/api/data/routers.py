@@ -135,7 +135,7 @@ class DataAPIRouter(routers.SimpleRouter):
                 )
 
                 if not prefix and regex[:2] == '^/':
-                    regex = '^' + regex[2:]
+                    regex = f'^{regex[2:]}'
 
                 initkwargs = route.initkwargs.copy()
                 initkwargs.update({

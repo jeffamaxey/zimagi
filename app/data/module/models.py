@@ -21,62 +21,63 @@ class ModuleFacade(ModelFacade('module')):
         super()._ensure(command, reinit)
 
     def ensure(self, command, reinit):
-        if settings.CLI_EXEC or settings.SCHEDULER_INIT:
-            if not reinit:
-                terminal_width = command.display_width
-                command.notice(
-                    "\n".join([
-                        "Zimagi needs to build a container with installed module dependencies",
-                        "This container will be stored and used in the future,",
-                        "so this process is only needed periodically",
-                        '',
-                        "The requested command will run directly after this initialization",
-                        "-" * terminal_width
-                    ])
-                )
+        if not settings.CLI_EXEC and not settings.SCHEDULER_INIT:
+            return
+        if not reinit:
+            terminal_width = command.display_width
+            command.notice(
+                "\n".join([
+                    "Zimagi needs to build a container with installed module dependencies",
+                    "This container will be stored and used in the future,",
+                    "so this process is only needed periodically",
+                    '',
+                    "The requested command will run directly after this initialization",
+                    "-" * terminal_width
+                ])
+            )
 
-            command.info("Updating modules from remote sources...")
-            if not self.retrieve(settings.CORE_MODULE):
-                command.options.add('module_provider_name', 'core')
-                command.module_provider.create(settings.CORE_MODULE, {})
+        command.info("Updating modules from remote sources...")
+        if not self.retrieve(settings.CORE_MODULE):
+            command.options.add('module_provider_name', 'core')
+            command.module_provider.create(settings.CORE_MODULE, {})
 
-            for fields in self.manager.index.default_modules:
-                fields = copy.deepcopy(fields)
-                remote = fields.pop('remote', None)
-                provider = fields.pop('provider', 'git')
+        for fields in self.manager.index.default_modules:
+            fields = copy.deepcopy(fields)
+            remote = fields.pop('remote', None)
+            provider = fields.pop('provider', 'git')
 
-                if remote:
-                    command.exec_local('module add', {
-                        'module_provider_name': provider,
-                        'remote': remote,
-                        'module_fields': fields
-                    })
-                elif 'name' in fields:
-                    name = fields.pop('name')
-                    command.exec_local('module save', {
-                        'module_provider_name': provider,
-                        'module_name': name,
-                        'module_fields': fields
-                    })
-
-            for module in command.get_instances(self):
-                module.provider.update()
-                module.provider.load_parents()
-
-            command.info("Ensuring display configurations...")
-            for module in command.get_instances(self):
-                command.exec_local('run', {
-                    'module_name': module.name,
-                    'profile_name': 'display',
-                    'ignore_missing': True
+            if remote:
+                command.exec_local('module add', {
+                    'module_provider_name': provider,
+                    'remote': remote,
+                    'module_fields': fields
+                })
+            elif 'name' in fields:
+                name = fields.pop('name')
+                command.exec_local('module save', {
+                    'module_provider_name': provider,
+                    'module_name': name,
+                    'module_fields': fields
                 })
 
-            self.manager.ordered_modules = None
-            command.exec_local('module install', {
-                'verbosity': command.verbosity
+        for module in command.get_instances(self):
+            module.provider.update()
+            module.provider.load_parents()
+
+        command.info("Ensuring display configurations...")
+        for module in command.get_instances(self):
+            command.exec_local('run', {
+                'module_name': module.name,
+                'profile_name': 'display',
+                'ignore_missing': True
             })
-            if not reinit:
-                command.notice("-" * terminal_width)
+
+        self.manager.ordered_modules = None
+        command.exec_local('module install', {
+            'verbosity': command.verbosity
+        })
+        if not reinit:
+            command.notice("-" * terminal_width)
 
     def keep(self, key = None):
         keep_names = []
@@ -136,14 +137,15 @@ class Module(Model('module')):
     @classmethod
     def save_deploy_modules(cls):
         config_facade = model_index().get_facade_index()['config']
-        deploy_modules = []
-        for module in cls.facade.all():
-            if module.remote:
-                deploy_modules.append({
-                    'remote': module.remote,
-                    'reference': module.reference,
-                    'config': module.config
-                })
+        deploy_modules = [
+            {
+                'remote': module.remote,
+                'reference': module.reference,
+                'config': module.config,
+            }
+            for module in cls.facade.all()
+            if module.remote
+        ]
         config_facade.store('deploy_modules',
             value = serialized_token() + serialize(deploy_modules),
             value_type = 'str',

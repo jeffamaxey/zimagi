@@ -9,9 +9,5 @@ class Provider(BaseProvider('function', 'value')):
 
         last_index = len(keys) - 1
         for index, key in enumerate(keys):
-            if index == last_index:
-                data = data.get(key, default)
-            else:
-                data = data.get(key, {})
-
+            data = data.get(key, default) if index == last_index else data.get(key, {})
         return data

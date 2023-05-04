@@ -26,11 +26,7 @@ class DataProviderState(object):
             keys = keys[1:] if len(keys) > 1 else []
             value = data.get(name, None)
 
-            if not len(keys):
-                return value
-            else:
-                return self.get_value(value, *keys)
-
+            return self.get_value(value, *keys) if len(keys) else value
         return None
 
     def get(self, *keys):
@@ -84,7 +80,9 @@ class BasePlugin(base.BasePlugin):
 
     def check_instance(self, op):
         if not self.instance:
-            self.command.error("Provider {} operation '{}' requires a valid model instance given to provider on initialization".format(self.name, op))
+            self.command.error(
+                f"Provider {self.name} operation '{op}' requires a valid model instance given to provider on initialization"
+            )
         return self.instance
 
 
@@ -212,11 +210,9 @@ class BasePlugin(base.BasePlugin):
 
         if names:
             self.command.set_scope(facade)
-            for instance in self.command.get_instances(facade, names = names):
-                instances.append(instance)
+            instances.extend(iter(self.command.get_instances(facade, names = names)))
         elif relations and getattr(relations, 'all', None):
-            for instance in relations.all():
-                instances.append(instance)
+            instances.extend(iter(relations.all()))
         elif isinstance(relations, BaseModel):
             instances.append(relations)
 
@@ -225,18 +221,15 @@ class BasePlugin(base.BasePlugin):
 
     def standardize_list_variables(self, elements):
         element_values = {}
-        mixed_values = []
-
         for item in elements:
             for key in item.keys():
                 element_values.setdefault(key, [])
                 element_values[key].append(type(item[key]))
 
-        for key, types in element_values.items():
-            if len(set(types)) > 1:
-                mixed_values.append(key)
-
-        for index, item in enumerate(elements):
+        mixed_values = [
+            key for key, types in element_values.items() if len(set(types)) > 1
+        ]
+        for item in elements:
             for key in mixed_values:
                 item.pop(key)
 
@@ -269,7 +262,7 @@ class BasePlugin(base.BasePlugin):
     def generate_name(self, prefix, state_variable):
         name_index = int(self.command.get_state(state_variable, 0)) + 1
         self.command.set_state(state_variable, name_index)
-        return "{}{}".format(prefix, name_index)
+        return f"{prefix}{name_index}"
 
 
     def _init_config(self, fields, create = True):
@@ -382,7 +375,7 @@ class BasePlugin(base.BasePlugin):
             self._init_config(fields, True)
             return self.store(name, fields)
         else:
-            self.command.error("Instance {} already exists".format(name))
+            self.command.error(f"Instance {name} already exists")
 
     def update(self, fields = None):
         if not fields:
@@ -443,9 +436,9 @@ class BasePlugin(base.BasePlugin):
 
 
     def add_related(self, instance, relation, facade, names, **fields):
-        for field in fields.keys():
+        for field in fields:
             if field not in facade.fields:
-                self.command.error("Given field {} is not in {}".format(field, facade.name))
+                self.command.error(f"Given field {field} is not in {facade.name}")
 
         queryset = query.get_queryset(instance, relation)
         instance_name = type(instance).__name__.lower()
@@ -465,13 +458,15 @@ class BasePlugin(base.BasePlugin):
                     try:
                         queryset.add(sub_instance)
                     except Exception as e:
-                        self.command.error("{} add failed: {}".format(facade.name.title(), str(e)))
+                        self.command.error(f"{facade.name.title()} add failed: {str(e)}")
 
-                    self.command.success("Successfully added {} {} to {} {}".format(sub_instance.facade.name, name, instance.facade.name, str(instance)))
+                    self.command.success(
+                        f"Successfully added {sub_instance.facade.name} {name} to {instance.facade.name} {str(instance)}"
+                    )
                 else:
-                    self.command.error("{} {} creation failed".format(facade.name.title(), name))
+                    self.command.error(f"{facade.name.title()} {name} creation failed")
         else:
-            self.command.error("There is no relation {} on {} class".format(relation, instance_name))
+            self.command.error(f"There is no relation {relation} on {instance_name} class")
 
     def remove_related(self, instance, relation, facade, names):
         queryset = query.get_queryset(instance, relation)
@@ -483,22 +478,23 @@ class BasePlugin(base.BasePlugin):
 
         if queryset:
             for name in names:
-                if name not in keep:
-                    sub_instance = facade.retrieve(name)
+                if name in keep:
+                    self.command.error(
+                        f"{facade.name.title()} {name} removal from {key} is restricted"
+                    )
+                elif sub_instance := facade.retrieve(name):
+                    try:
+                        queryset.remove(sub_instance)
+                    except Exception as e:
+                        self.command.error(f"{facade.name.title()} remove failed: {str(e)}")
 
-                    if sub_instance:
-                        try:
-                            queryset.remove(sub_instance)
-                        except Exception as e:
-                            self.command.error("{} remove failed: {}".format(facade.name.title(), str(e)))
-
-                        self.command.success("Successfully removed {} {} from {} {}".format(sub_instance.facade.name, name, instance.facade.name, key))
-                    else:
-                        self.command.warning("{} {} does not exist".format(facade.name.title(), name))
+                    self.command.success(
+                        f"Successfully removed {sub_instance.facade.name} {name} from {instance.facade.name} {key}"
+                    )
                 else:
-                    self.command.error("{} {} removal from {} is restricted".format(facade.name.title(), name, key))
+                    self.command.warning(f"{facade.name.title()} {name} does not exist")
         else:
-            self.command.error("There is no relation {} on {} class".format(relation, instance_name))
+            self.command.error(f"There is no relation {relation} on {instance_name} class")
 
     def update_related(self, instance, relation, facade, names, **fields):
         queryset = query.get_queryset(instance, relation)
@@ -507,7 +503,9 @@ class BasePlugin(base.BasePlugin):
             if queryset:
                 queryset.clear()
             else:
-                self.command.error("Instance {} relation {} is not a valid queryset".format(getattr(instance, instance.facade.key()), relation))
+                self.command.error(
+                    f"Instance {getattr(instance, instance.facade.key())} relation {relation} is not a valid queryset"
+                )
         else:
             all_names = []
             input_names = []
@@ -516,9 +514,10 @@ class BasePlugin(base.BasePlugin):
 
             if queryset:
                 sub_key = facade.key()
-                for sub_instance in queryset.all():
-                    all_names.append(getattr(sub_instance, sub_key))
-
+                all_names.extend(
+                    getattr(sub_instance, sub_key)
+                    for sub_instance in queryset.all()
+                )
             for name in names:
                 if name.startswith('+'):
                     add_names.append(name[1:])
@@ -548,40 +547,37 @@ class BasePlugin(base.BasePlugin):
     def set_related(self, instance, relation, facade, value, **fields):
         if value is None:
             setattr(instance, relation, None)
-        else:
-            if isinstance(value, str):
-                if re.match(r'(none|null)', value, re.IGNORECASE):
-                    setattr(instance, relation, None)
-                else:
-                    sub_instance = self.command.get_instance(facade, value, required = False)
-
-                    if not sub_instance:
-                        provider_type = fields.pop('provider_type', 'base')
-                        provider = self.command.get_provider(facade.provider_name, provider_type)
-                        sub_instance = provider.create(value, fields)
-                    elif fields:
-                        sub_instance.provider.update(fields)
-
-                    if sub_instance:
-                        setattr(instance, relation, sub_instance)
-                        self.command.success("Successfully added {} {} to {} {}".format(sub_instance.facade.name, value, instance.facade.name, str(instance)))
-                    else:
-                        self.command.error("{} {} creation failed".format(facade.name.title(), value))
+        elif isinstance(value, str):
+            if re.match(r'(none|null)', value, re.IGNORECASE):
+                setattr(instance, relation, None)
             else:
-                setattr(instance, relation, value)
+                sub_instance = self.command.get_instance(facade, value, required = False)
+
+                if not sub_instance:
+                    provider_type = fields.pop('provider_type', 'base')
+                    provider = self.command.get_provider(facade.provider_name, provider_type)
+                    sub_instance = provider.create(value, fields)
+                elif fields:
+                    sub_instance.provider.update(fields)
+
+                if sub_instance:
+                    setattr(instance, relation, sub_instance)
+                    self.command.success(
+                        f"Successfully added {sub_instance.facade.name} {value} to {instance.facade.name} {str(instance)}"
+                    )
+                else:
+                    self.command.error(f"{facade.name.title()} {value} creation failed")
+        else:
+            setattr(instance, relation, value)
 
         instance.save()
 
 
     def _collect_variables(self, instance, variables = None):
-        collected_variables = {}
         if not variables:
             variables = {}
 
-        for variable, value in variables.items():
-            collected_variables[variable] = value
-
-        return collected_variables
+        return dict(variables.items())
 
 
     def _get_field_info(self, fields):

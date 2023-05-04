@@ -13,15 +13,10 @@ class MetaRuntime(type):
 
     def get(self, name, default = None):
         with self.lock:
-            if name not in self.config:
-                return default
-            else:
-                return self.config[name]
+            return default if name not in self.config else self.config[name]
 
     def get_or_set(self, name, value = None, default = None):
-        if value is not None:
-            return self.save(name, value)
-        return self.get(name, default)
+        return self.save(name, value) if value is not None else self.get(name, default)
 
 
     def debug(self, value = None):

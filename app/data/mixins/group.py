@@ -6,9 +6,7 @@ from data.group.cache import Cache
 class GroupMixinFacade(ModelMixinFacade('group')):
 
     def check_group_access(self, instance, command):
-        if not command.check_access(instance):
-            return False
-        return True
+        return bool(command.check_access(instance))
 
 
 class GroupMixin(ModelMixin('group')):
@@ -31,7 +29,8 @@ class GroupMixin(ModelMixin('group')):
 
 
     def initialize(self, command):
-        if getattr(super(), 'initialize', None):
-            if not super().initialize(command):
-                return False
+        if getattr(super(), 'initialize', None) and not super().initialize(
+            command
+        ):
+            return False
         return self.facade.check_group_access(self, command)

@@ -51,17 +51,14 @@ class ManagerServiceMixin(object):
         image = base_image.split(':')[0]
         if tag is None:
             tag = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        return "{}:{}".format(image, tag)
+        return f"{image}:{tag}"
 
 
     def list_images(self):
-        if self.client:
-            return self.client.images.list()
-        return []
+        return self.client.images.list() if self.client else []
 
     def create_image(self, id, image_name):
-        container = self._service_container(id)
-        if container:
+        if container := self._service_container(id):
             container.commit(image_name)
 
     def delete_image(self, image_name, force = True, noprune = False):
@@ -89,8 +86,8 @@ class ManagerServiceMixin(object):
 
     def _normalize_name(self, name):
         if isinstance(name, (list, tuple)):
-            return [ "{}-{}-{}".format(self.app_name, item, self.env.name) for item in name ]
-        return "{}-{}-{}".format(self.app_name, name, self.env.name)
+            return [f"{self.app_name}-{item}-{self.env.name}" for item in name]
+        return f"{self.app_name}-{name}-{self.env.name}"
 
 
     @property
@@ -131,7 +128,7 @@ class ManagerServiceMixin(object):
             elif isinstance(data, str):
                 parser = Template(data)
                 data = normalize_value(parser.substitute(**variables).strip())
-                data = None if not data else data
+                data = data if data else None
             return data
 
         service = interpolate(service, environment)
@@ -161,7 +158,7 @@ class ManagerServiceMixin(object):
         name = self._normalize_name(name)
         directory = os.path.join(self.data_dir, 'run')
         pathlib.Path(directory).mkdir(parents = True, exist_ok = True)
-        return os.path.join(directory, "{}.data".format(name))
+        return os.path.join(directory, f"{name}.data")
 
     def _save_service(self, name, id, data = None):
         if not data:
@@ -196,18 +193,16 @@ class ManagerServiceMixin(object):
                 service = self._service_container(service_id)
             if service:
                 if service.status != 'running':
-                    if create or restart:
-                        self.print("{} {}".format(
-                            self.notice_color('Restarting Zimagi service'),
-                            self.key_color(name)
-                        ))
-                        service.start()
-                        success, service = self._check_service(name, service)
-                        if not success:
-                            self._service_error(name, service)
-                    else:
+                    if not create and not restart:
                         return None
 
+                    self.print(
+                        f"{self.notice_color('Restarting Zimagi service')} {self.key_color(name)}"
+                    )
+                    service.start()
+                    success, service = self._check_service(name, service)
+                    if not success:
+                        self._service_error(name, service)
                 data['service'] = service
                 data['ports'] = {}
                 for port_name, port_list in service.attrs['NetworkSettings']['Ports'].items():
@@ -219,7 +214,7 @@ class ManagerServiceMixin(object):
                 return data
 
             elif create:
-                raise ServiceError("Zimagi could not initialize and load service {}".format(name))
+                raise ServiceError(f"Zimagi could not initialize and load service {name}")
         elif create:
             self.start_service(name, **service_spec)
             return self.get_service(name)
@@ -231,7 +226,7 @@ class ManagerServiceMixin(object):
         current_time = start_time
         success = True
 
-        while (current_time - start_time) <= spec.get('wait', 30):
+        while current_time - current_time <= spec.get('wait', 30):
             service = self.client.containers.get(service.id)
             if service.status != 'running':
                 success = False
@@ -263,18 +258,17 @@ class ManagerServiceMixin(object):
         if data and self._service_container(data['id']):
             return data['id']
 
-        self.print("{} {}".format(
-            self.notice_color('Launching Zimagi service'),
-            self.key_color(name)
-        ))
+        self.print(
+            f"{self.notice_color('Launching Zimagi service')} {self.key_color(name)}"
+        )
         options = normalize_value(options)
         container_name = self._normalize_name(name)
-        network = self._get_network("{}-{}".format(self.app_name, self.env.name))
+        network = self._get_network(f"{self.app_name}-{self.env.name}")
 
-        dns_map = {}
-        for spec_name, spec in self.get_spec('services').items():
-            dns_map[self._normalize_name(spec_name)] = spec_name
-
+        dns_map = {
+            self._normalize_name(spec_name): spec_name
+            for spec_name, spec in self.get_spec('services').items()
+        }
         volume_info = {}
         for local_path, remote_config in volumes.items():
             if local_path[0] != '/':
@@ -322,13 +316,11 @@ class ManagerServiceMixin(object):
         if not self.client:
             return
 
-        data = self.get_service(name, restart = False, create = False)
-        if data:
+        if data := self.get_service(name, restart=False, create=False):
             operation = 'Destroying' if remove else 'Stopping'
-            self.print("{} {}".format(
-                self.notice_color("{} Zimagi service".format(operation)),
-                self.key_color(name)
-            ))
+            self.print(
+                f'{self.notice_color(f"{operation} Zimagi service")} {self.key_color(name)}'
+            )
             container = self.client.containers.get(data['id'])
             container.stop()
 
@@ -342,58 +334,59 @@ class ManagerServiceMixin(object):
                     if remove_image:
                         self.client.images.remove(container.image.name)
                     if remove_network:
-                        network_name = "{}-{}".format(self.app_name, self.env.name)
+                        network_name = f"{self.app_name}-{self.env.name}"
                         self.client.networks.prune({ 'name': network_name })
                 except Exception:
                     pass
 
                 self._delete_service(name)
-        else:
-            service = self._service_container(self._normalize_name(name))
-            if service:
-                service.remove(force = True)
+        elif service := self._service_container(self._normalize_name(name)):
+            service.remove(force = True)
 
 
     def _service_error(self, name, service):
-        error_message = "Service {} terminated with errors".format(name)
+        error_message = f"Service {name} terminated with errors"
         log_message = ''
 
         try:
-            log_message = "\n\n{}".format(service.logs().decode('utf-8').strip())
+            log_message = f"\n\n{service.logs().decode('utf-8').strip()}"
         except docker.errors.APIError as error:
             pass
 
         self.stop_service(name, True)
-        raise ServiceError("{}{}".format(error_message, log_message))
+        raise ServiceError(f"{error_message}{log_message}")
 
 
     def display_service_logs(self, names, tail = 20, follow = False):
-        if self.client:
-            names = ensure_list(names, True)
+        if not self.client:
+            return
+        names = ensure_list(names, True)
 
-            def display_logs(name):
-                data = self.get_service(name, restart = False, create = False)
-                if data:
-                    container = self.client.containers.get(data['id'])
+        def display_logs(name):
+            data = self.get_service(name, restart = False, create = False)
+            if data:
+                container = self.client.containers.get(data['id'])
 
-                    if follow:
-                        initial_logs = True
-                        while container.status == 'running':
-                            lines = tail if initial_logs else 0
-                            for message in container.logs(stream = follow, follow = follow, tail = lines):
-                                self.print("[ {} ] {}".format(self.key_color(name), self.value_color(message.decode('utf-8').strip())))
-                            initial_logs = False
-                    else:
-                        for message in container.logs(stream = False, follow = False, tail = tail).decode('utf-8').split("\n"):
-                            self.print("[ {} ] {}".format(self.key_color(name), self.value_color(message.strip())))
+                if follow:
+                    initial_logs = True
+                    while container.status == 'running':
+                        lines = tail if initial_logs else 0
+                        for message in container.logs(stream = follow, follow = follow, tail = lines):
+                            self.print("[ {} ] {}".format(self.key_color(name), self.value_color(message.decode('utf-8').strip())))
+                        initial_logs = False
                 else:
-                    self.print(self.warning_color("Service {} has not been created or is not running".format(name)))
+                    for message in container.logs(stream = False, follow = False, tail = tail).decode('utf-8').split("\n"):
+                        self.print("[ {} ] {}".format(self.key_color(name), self.value_color(message.strip())))
+            else:
+                self.print(self.warning_color("Service {} has not been created or is not running".format(name)))
 
-            results = Parallel.list(names, display_logs)
-            if results.aborted:
-                raise ServiceError("\n".join([ str(error) for error in results.errors ]))
+        results = Parallel.list(names, display_logs)
+        if results.aborted:
+            raise ServiceError("\n".join([ str(error) for error in results.errors ]))
 
 
     def get_service_shell(self, name, shell = 'bash'):
         name = self._normalize_name(name)
-        subprocess.call("docker exec --interactive --tty {} {}".format(name, shell), shell = True)
+        subprocess.call(
+            f"docker exec --interactive --tty {name} {shell}", shell=True
+        )

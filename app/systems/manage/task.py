@@ -11,19 +11,19 @@ import redis
 
 
 def command_status_key(key):
-    return "command:status:{}".format(key)
+    return f"command:status:{key}"
 
 def command_control_key(key):
-    return "command:control:{}".format(key)
+    return f"command:control:{key}"
 
 def channel_abort_key(key):
-    return "channel:abort:{}".format(key)
+    return f"channel:abort:{key}"
 
 def channel_message_key(key):
-    return "channel:messages:{}".format(key)
+    return f"channel:messages:{key}"
 
 def channel_communication_key(key):
-    return "channel:communication:{}".format(key)
+    return f"channel:communication:{key}"
 
 
 class CommandAborted(Exception):
@@ -49,21 +49,25 @@ class ControlSensor(threading.Thread):
 
 
     def run(self):
-        if self.manager.task_connection():
-            subscription = self.manager._task_connection.pubsub(ignore_subscribe_messages = True)
-            try:
-                subscription.subscribe(channel_abort_key(self.key))
+        if not self.manager.task_connection():
+            return
+        subscription = self.manager._task_connection.pubsub(ignore_subscribe_messages = True)
+        try:
+            subscription.subscribe(channel_abort_key(self.key))
 
-                while not self.terminated:
-                    message = subscription.get_message()
-                    if message and message['type'] == 'message':
-                        if message['data'] == self.manager.TASK_ABORT_TOKEN:
-                            os.kill(os.getpid(), signal.SIGUSR1)
+            while not self.terminated:
+                message = subscription.get_message()
+                if (
+                    message
+                    and message['type'] == 'message'
+                    and message['data'] == self.manager.TASK_ABORT_TOKEN
+                ):
+                    os.kill(os.getpid(), signal.SIGUSR1)
 
-                    time.sleep(0.25)
-            finally:
-                self.manager.delete_task_control(self.key)
-                subscription.close()
+                time.sleep(0.25)
+        finally:
+            self.manager.delete_task_control(self.key)
+            subscription.close()
 
 
     def terminate(self, timeout = None):
@@ -163,36 +167,34 @@ class ManagerTaskMixin(object):
 
 
     def follow_task(self, key, message_callback = None, status_check_interval = 1000, sleep_secs = 0.01):
-        if self.task_connection():
-            status = self.get_task_status(key)
-            if status:
-                return status
+        if not self.task_connection():
+            return None
+        if status := self.get_task_status(key):
+            return status
 
-            subscription = self._task_connection.pubsub(ignore_subscribe_messages = True)
-            subscription.subscribe(channel_message_key(key))
-            status_check_index = 0
+        subscription = self._task_connection.pubsub(ignore_subscribe_messages = True)
+        subscription.subscribe(channel_message_key(key))
+        status_check_index = 0
 
-            while True:
-                message = subscription.get_message()
-                if message:
-                    if message['type'] == 'message':
-                        if message['data'] == self.TASK_EXIT_TOKEN:
-                            break
-                        if callable(message_callback):
-                            message_callback(load_json(message['data']))
-
-                if status_check_index > status_check_interval:
-                    if self.get_task_status(key):
+        while True:
+            if message := subscription.get_message():
+                if message['type'] == 'message':
+                    if message['data'] == self.TASK_EXIT_TOKEN:
                         break
-                    else:
-                        status_check_index = 0
+                    if callable(message_callback):
+                        message_callback(load_json(message['data']))
 
-                time.sleep(sleep_secs)
-                status_check_index += 1
+            if status_check_index > status_check_interval:
+                if self.get_task_status(key):
+                    break
+                else:
+                    status_check_index = 0
 
-            subscription.close()
-            return self.get_task_status(key)
-        return None
+            time.sleep(sleep_secs)
+            status_check_index += 1
+
+        subscription.close()
+        return self.get_task_status(key)
 
     def wait_for_tasks(self, keys):
         if self.task_connection() and keys:
@@ -217,8 +219,7 @@ class ManagerTaskMixin(object):
 
     def check_task_abort(self, key):
         if self.task_connection() and not self.get_task_status(key):
-            control = self.get_task_control(key)
-            if control:
+            if control := self.get_task_control(key):
                 self.delete_task_control(key)
                 if control == self.TASK_ABORT_TOKEN:
                     os.kill(os.getpid(), signal.SIGUSR1)

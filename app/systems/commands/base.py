@@ -112,7 +112,7 @@ class BaseCommand(
 
     @property
     def module_path(self):
-        return "{}/{}".format(self.base_path, self.spec['_module'])
+        return f"{self.base_path}/{self.spec['_module']}"
 
 
     def get_path(self, path):
@@ -141,13 +141,10 @@ class BaseCommand(
         return messages.AppMessage.get(data, decrypt = decrypt, user = self.active_user.name)
 
     def get_messages(self, flush = True):
-        messages = []
-
         if flush:
             self.flush()
 
-        for message in iter(self.messages.get, None):
-            messages.append(message)
+        messages = list(iter(self.messages.get, None))
         return messages
 
 
@@ -332,7 +329,7 @@ class BaseCommand(
         return ''
 
     def get_full_name(self):
-        return "{} {}".format(self.get_parent_name(), self.name).strip()
+        return f"{self.get_parent_name()} {self.name}".strip()
 
     def get_id(self):
         return ".".join(self.get_full_name().split(' '))
@@ -357,10 +354,7 @@ class BaseCommand(
         if user.name == settings.ADMIN_USER:
             return True
 
-        if not groups:
-            return True
-
-        return user.env_groups.filter(name__in = groups).exists()
+        return user.env_groups.filter(name__in = groups).exists() if groups else True
 
 
     def check_access(self, instance, reset = False):
@@ -383,15 +377,16 @@ class BaseCommand(
             else:
                 user_groups.append(group)
 
-        if len(user_groups):
-            if not self.active_user.env_groups.filter(name__in = user_groups).exists():
-                self.warning("Operation {} {} {} access requires at least one of the following roles in environment: {}".format(
-                    self.get_full_name(),
-                    instance.facade.name,
-                    instance.name,
-                    ", ".join(user_groups)
-                ))
-                return False
+        if (
+            len(user_groups)
+            and not self.active_user.env_groups.filter(
+                name__in=user_groups
+            ).exists()
+        ):
+            self.warning(
+                f'Operation {self.get_full_name()} {instance.facade.name} {instance.name} access requires at least one of the following roles in environment: {", ".join(user_groups)}'
+            )
+            return False
 
         return True
 
@@ -409,12 +404,12 @@ class BaseCommand(
         elif name in providers.keys():
             provider_class = providers[name]
         else:
-            self.error("Plugin {} provider {} not supported".format(type, name))
+            self.error(f"Plugin {type} provider {name} not supported")
 
         try:
             return provider_class(type, name, self, *args, **options).context(subtype, self.test)
         except Exception as e:
-            self.error("Plugin {} provider {} error: {}".format(type, name, e))
+            self.error(f"Plugin {type} provider {name} error: {e}")
 
 
     def print_help(self):
@@ -543,7 +538,7 @@ class BaseCommand(
             if not message:
                 message = self.confirmation_message
 
-            confirmation = input("{} (type YES to confirm): ".format(message))
+            confirmation = input(f"{message} (type YES to confirm): ")
 
             if re.match(r'^[Yy][Ee][Ss]$', confirmation):
                 return True
@@ -585,7 +580,12 @@ class BaseCommand(
 
         if results.aborted:
             for thread in results.errors:
-                self.error(thread.error, prefix = "[ {} ]".format(thread.name), traceback = thread.traceback, terminate = False)
+                self.error(
+                    thread.error,
+                    prefix=f"[ {thread.name} ]",
+                    traceback=thread.traceback,
+                    terminate=False,
+                )
             raise ParallelError()
 
         return results
@@ -597,9 +597,9 @@ class BaseCommand(
             start_time = time.time()
             current_time = start_time
 
-            while (current_time - start_time) <= timeout:
+            while current_time - current_time <= timeout:
                 try:
-                    state_id = "lock_{}".format(lock_id)
+                    state_id = f"lock_{lock_id}"
                     if run_once and self.get_state(state_id, None):
                         break
 
@@ -611,12 +611,12 @@ class BaseCommand(
 
                 except MutexError:
                     if error_on_locked:
-                        self.error("Could not obtain lock for {}".format(lock_id))
+                        self.error(f"Could not obtain lock for {lock_id}")
                     if timeout == 0:
                         break
 
                 except MutexTimeoutError:
-                    logger.warning("Task {} completed but the lock timed out".format(lock_id))
+                    logger.warning(f"Task {lock_id} completed but the lock timed out")
                     break
 
                 self.sleep(interval)
@@ -626,7 +626,7 @@ class BaseCommand(
     def get_profiler_path(self, name):
         base_path = os.path.join(settings.PROFILER_PATH, self.curr_env_name)
         pathlib.Path(base_path).mkdir(parents = True, exist_ok = True)
-        return os.path.join(base_path, "{}.{}.profile".format(self.get_id(), name))
+        return os.path.join(base_path, f"{self.get_id()}.{name}.profile")
 
     def start_profiler(self, name, check = True):
         if settings.COMMAND_PROFILE and settings.CLI_EXEC and check:
@@ -659,17 +659,12 @@ class BaseCommand(
 
     def validate_options(self, options):
         allowed_options = list(self.option_map.keys())
-        not_found = []
-
-        for key, value in options.items():
-            if key not in allowed_options:
-                not_found.append(key)
-
-        if not_found:
-            self.error("Requested command options not found: {}\n\nAvailable options: {}".format(
-                ", ".join(not_found),
-                ", ".join(allowed_options)
-            ))
+        if not_found := [
+            key for key, value in options.items() if key not in allowed_options
+        ]:
+            self.error(
+                f'Requested command options not found: {", ".join(not_found)}\n\nAvailable options: {", ".join(allowed_options)}'
+            )
 
     def set_options(self, options, primary = False):
         self.options.clear()
@@ -678,9 +673,8 @@ class BaseCommand(
             self.set_option_defaults()
             self.validate_options(options)
 
-        host = options.pop('environment_host', None)
-        if host:
-           self.options.add('environment_host', host, False)
+        if host := options.pop('environment_host', None):
+            self.options.add('environment_host', host, False)
 
         for key, value in options.items():
             self.options.add(key, value)

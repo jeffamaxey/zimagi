@@ -18,7 +18,7 @@ class Provider(BaseProvider('parser', 'reference')):
             value = self.parse_reference(value)
         else:
             for ref_match in re.finditer(self.reference_value_pattern, value):
-                reference_value = self.parse_reference("&{}".format(ref_match.group(1)))
+                reference_value = self.parse_reference(f"&{ref_match.group(1)}")
                 if isinstance(reference_value, (list, tuple)):
                     reference_value = ",".join(reference_value)
                 elif isinstance(reference_value, dict):
@@ -32,17 +32,13 @@ class Provider(BaseProvider('parser', 'reference')):
 
     def parse_reference(self, value):
         ref_match = re.search(self.reference_pattern, value)
-        reference_variable = ref_match.group(1)
+        reference_variable = ref_match[1]
 
-        operations = ref_match.group(2)
-        if operations:
-            operations = operations.strip()
-        else:
-            operations = ''
+        operations = ref_match[2]
+        operations = operations.strip() if operations else ''
+        facade = self.command.facade(ref_match[3], False)
 
-        facade = self.command.facade(ref_match.group(3), False)
-
-        scopes = ref_match.group(4)
+        scopes = ref_match[4]
         scope_filters = {}
         if scopes:
             for scope_filter in scopes.replace(' ', '').split(';'):
@@ -55,7 +51,7 @@ class Provider(BaseProvider('parser', 'reference')):
 
             facade.set_scope(scope_filters)
 
-        names = ref_match.group(5)
+        names = ref_match[5]
         if names:
             search_names = names.replace(' ', '').split(',')
             names = []
@@ -71,8 +67,8 @@ class Provider(BaseProvider('parser', 'reference')):
                 else:
                     names.append(name)
 
-        fields = re.split(r'\s*,\s*', ref_match.group(6))
-        keys = ref_match.group(7)
+        fields = re.split(r'\s*,\s*', ref_match[6])
+        keys = ref_match[7]
         if keys and len(fields) == 1:
             keys = keys.replace(' ', '').split('][')
 
@@ -91,18 +87,19 @@ class Provider(BaseProvider('parser', 'reference')):
                 if keys:
                     for field in fields:
                         instance_value = data.get(field, None)
-                        if instance_value is not None:
-                            if isinstance(instance_value, (dict, list, tuple)):
-                                def _get_value(_data, key_list):
-                                    if isinstance(_data, (dict, list, tuple)) and len(key_list):
-                                        base_key = normalize_index(key_list.pop(0))
-                                        try:
-                                            return _get_value(_data[base_key], key_list)
-                                        except Exception:
-                                            return None
-                                    return _data
+                        if instance_value is not None and isinstance(
+                            instance_value, (dict, list, tuple)
+                        ):
+                            def _get_value(_data, key_list):
+                                if isinstance(_data, (dict, list, tuple)) and len(key_list):
+                                    base_key = normalize_index(key_list.pop(0))
+                                    try:
+                                        return _get_value(_data[base_key], key_list)
+                                    except Exception:
+                                        return None
+                                return _data
 
-                                data[field] = _get_value(instance_value, keys)
+                            data[field] = _get_value(instance_value, keys)
 
                 if len(fields) == 1:
                     data = data[fields[0]]

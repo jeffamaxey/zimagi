@@ -18,7 +18,7 @@ class CSVSourceMixin(ProviderMixin('csv_source')):
         data_type = None,
         header = None
     ):
-        zipped_file = True if file.endswith('.zip') else False
+        zipped_file = bool(file.endswith('.zip'))
         temp = TempDir()
 
         if re.match('^https?\:\/\/', file):
@@ -49,6 +49,4 @@ class CSVSourceMixin(ProviderMixin('csv_source')):
 
 
     def get_column_type(self, data_type):
-        if data_type is None:
-            return data_type
-        return get_type(data_type)
+        return data_type if data_type is None else get_type(data_type)

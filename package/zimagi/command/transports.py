@@ -34,7 +34,7 @@ class CommandHTTPSTransport(transports.BaseTransport):
             params = params,
             encrypted = True
         )
-        logger.debug("Stream {} request headers: {}".format(url, headers))
+        logger.debug(f"Stream {url} request headers: {headers}")
 
         if request_response.status_code >= 400:
             raise exceptions.ResponseError(utility.format_response_error(request_response, self.client.cipher))
@@ -50,9 +50,11 @@ class CommandHTTPSTransport(transports.BaseTransport):
                 command_response.add(message)
 
         except Exception as error:
-            logger.debug("Stream {} error response headers: {}".format(url, request_response.headers))
-            logger.debug("Stream {} error response params:\n\n{}".format(url, yaml.dump(params)))
-            logger.debug("Stream {} error status code: {}".format(url, request_response.status_code))
+            logger.debug(
+                f"Stream {url} error response headers: {request_response.headers}"
+            )
+            logger.debug(f"Stream {url} error response params:\n\n{yaml.dump(params)}")
+            logger.debug(f"Stream {url} error status code: {request_response.status_code}")
             raise error
 
         if settings.COMMAND_RAISE_ERROR and command_response.error:

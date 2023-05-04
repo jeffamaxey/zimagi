@@ -431,16 +431,15 @@ class ActionCommand(
                 self.info("-" * width, log = False)
 
             if not self.local and host and \
-                (settings.CLI_EXEC or host.name != settings.DEFAULT_HOST_NAME) and \
-                self.server_enabled() and self.remote_exec():
+                    (settings.CLI_EXEC or host.name != settings.DEFAULT_HOST_NAME) and \
+                    self.server_enabled() and self.remote_exec():
 
                 if primary and self.display_header() and self.verbosity > 1 and not task:
-                    self.data("> env ({})".format(
-                            self.key_color(host.host)
-                        ),
+                    self.data(
+                        f"> env ({self.key_color(host.host)})",
                         env.name,
                         'environment',
-                        log = False
+                        log=False,
                     )
 
                 if primary and settings.CLI_EXEC and not task:
@@ -450,7 +449,9 @@ class ActionCommand(
                 self.exec_remote(host, self.get_full_name(), options, display = True)
             else:
                 if not self.check_execute():
-                    self.error("User {} does not have permission to execute command: {}".format(self.active_user.name, self.get_full_name()))
+                    self.error(
+                        f"User {self.active_user.name} does not have permission to execute command: {self.get_full_name()}"
+                    )
 
                 if primary and self.display_header() and self.verbosity > 1 and not task:
                     self.data('> env',
@@ -466,7 +467,12 @@ class ActionCommand(
 
                     if settings.CLI_EXEC or settings.SERVICE_INIT:
                         self.info("=" * width, log = False)
-                        self.data("> {}".format(self.key_color(self.get_full_name())), log_key, 'log_key', log = False)
+                        self.data(
+                            f"> {self.key_color(self.get_full_name())}",
+                            log_key,
+                            'log_key',
+                            log=False,
+                        )
                         self.info("-" * width, log = False)
                 try:
                     self.preprocess_handler(self.options, primary)
@@ -522,7 +528,7 @@ class ActionCommand(
 
             if self.display_header() and self.verbosity > 1:
                 self.info("=" * width)
-                self.data("> {}".format(self.get_full_name()), log_key, 'log_key')
+                self.data(f"> {self.get_full_name()}", log_key, 'log_key')
                 self.data("> active user", self.active_user.name, 'active_user')
                 self.info("-" * width)
 
@@ -562,12 +568,14 @@ class ActionCommand(
     def handle_api(self, options):
         self._register_signal_handlers()
 
-        logger.debug("Running API command: {}\n\n{}".format(self.get_full_name(), yaml.dump(options)))
+        logger.debug(
+            f"Running API command: {self.get_full_name()}\n\n{yaml.dump(options)}"
+        )
 
         action = threading.Thread(target = self._exec_wrapper, args = (options,))
         action.start()
 
-        logger.debug("Command thread started: {}".format(self.get_full_name()))
+        logger.debug(f"Command thread started: {self.get_full_name()}")
 
         try:
             while True:
@@ -575,17 +583,15 @@ class ActionCommand(
                 logger.debug("Checking messages")
 
                 for data in iter(self.messages.get, None):
-                    logger.debug("Receiving data: {}".format(data))
+                    logger.debug(f"Receiving data: {data}")
 
                     msg = self.create_message(data, decrypt = False)
-                    package = msg.to_package()
-                    yield package
-
+                    yield msg.to_package()
                 if not action.is_alive():
                     logger.debug("Command thread is no longer active")
                     break
         except Exception as e:
-            logger.warning("Command transport exception: {}".format(e))
+            logger.warning(f"Command transport exception: {e}")
             raise e
         finally:
             logger.debug("User disconnected")

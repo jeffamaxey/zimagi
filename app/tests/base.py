@@ -20,12 +20,14 @@ class BaseTest(object):
 
     def get_modules(self):
         modules = { module.name: module for module in self.command.get_instances(self.command._module) }
-        ordered_modules = []
-
-        for name in [ self.manager.index.get_module_name(path) for path in self.manager.index.get_ordered_modules().keys() ]:
-            if name in modules:
-                ordered_modules.append(modules[name])
-        return ordered_modules
+        return [
+            modules[name]
+            for name in [
+                self.manager.index.get_module_name(path)
+                for path in self.manager.index.get_ordered_modules().keys()
+            ]
+            if name in modules
+        ]
 
 
     def get_test_libs(self, type):
@@ -34,7 +36,10 @@ class BaseTest(object):
             for file_components in get_files(test_path):
                 file = file_components[-1]
                 if file.endswith('.py') and file != 'base.py':
-                    test_libs.append("tests.{}.".format(type) + ".".join(file_components[1:]).removesuffix('.py'))
+                    test_libs.append(
+                        f"tests.{type}."
+                        + ".".join(file_components[1:]).removesuffix('.py')
+                    )
         return test_libs
 
     def run_tests(self, module_name, *args, **kwargs):

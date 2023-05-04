@@ -43,9 +43,7 @@ class ManagerTemplateMixin(object):
 
     def get_module_path(self, module, path = None):
         module_path = module.provider.module_path(module.name)
-        if path:
-            return os.path.join(module_path, path)
-        return module_path
+        return os.path.join(module_path, path) if path else module_path
 
 
     @lru_cache(maxsize = None)

@@ -66,7 +66,9 @@ class BasePlugin(base.BasePlugin):
         if type in self.provider_index:
             return self.provider_index[type]
         else:
-            raise MetaProviderAccessError("Sub provider {} does not exist in {} index".format(type, self.name))
+            raise MetaProviderAccessError(
+                f"Sub provider {type} does not exist in {self.name} index"
+            )
 
 
     def set(self, type, provider_cls):

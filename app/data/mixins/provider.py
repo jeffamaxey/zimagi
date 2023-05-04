@@ -22,7 +22,6 @@ class ProviderMixin(ModelMixin('provider')):
         if not super().initialize(command):
             return False
 
-        provider_name = self.facade.provider_name
-        if provider_name:
+        if provider_name := self.facade.provider_name:
             self.provider = command.get_provider(provider_name, self.provider_type, instance = self)
         return True

@@ -36,4 +36,4 @@ def concatenate(*dataframes, ffill = False):
 
 
 def get_csv_file_name(path):
-    return "{}.csv".format(path)
+    return f"{path}.csv"

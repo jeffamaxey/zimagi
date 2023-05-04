@@ -85,7 +85,7 @@ class ThreadError(object):
         self.traceback = format_exception_info()
 
     def __str__(self):
-        return "[{}] - {}\n\n** {}".format(self.name, self.error, self.traceback)
+        return f"[{self.name}] - {self.error}\n\n** {self.traceback}"
 
     def __repr__(self):
         return self.__str__()
@@ -96,7 +96,7 @@ class ThreadResult(object):
         self.result = result
 
     def __str__(self):
-        return "[{}] - {}".format(self.name, self.result)
+        return f"[{self.name}] - {self.result}"
 
     def __repr__(self):
         return self.__str__()

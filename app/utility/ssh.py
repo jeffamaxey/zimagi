@@ -14,7 +14,7 @@ class SSH(object):
         key = paramiko.RSAKey.generate(4096)
         private_str = StringIO()
         key.write_private_key(private_str)
-        return (private_str.getvalue(), "ssh-rsa {}".format(key.get_base64()))
+        return private_str.getvalue(), f"ssh-rsa {key.get_base64()}"
 
     @classmethod
     def create_password(cls, length = 32):
@@ -176,7 +176,7 @@ class SSH(object):
         return self._exec(command, args, options)
 
     def sudo(self, command, *args, **options):
-        command = "sudo -E -S -p '' {}".format(command)
+        command = f"sudo -E -S -p '' {command}"
         return self.exec(command, *args, **options)
 
     def _exec(self, command, args, options):
@@ -186,17 +186,14 @@ class SSH(object):
         command = self._format_command(command, args, options, separator)
         is_sudo = command.startswith('sudo')
 
-        env = []
-        for variable, value in self.env.items():
-            env.append("{}='{}'".format(variable, value))
+        env = [f"{variable}='{value}'" for variable, value in self.env.items()]
         env = " ".join(env) + ' '
 
-        stdin, stdout, stderr = self.client.exec_command("{}{}".format(env, command).strip())
+        stdin, stdout, stderr = self.client.exec_command(f"{env}{command}".strip())
 
-        if is_sudo:
-            if self.password:
-                stdin.write(self.password + "\n")
-                stdin.flush()
+        if is_sudo and self.password:
+            stdin.write(self.password + "\n")
+            stdin.flush()
 
         if self.callback and callable(self.callback):
             self.callback(self, stdin, stdout, stderr)
@@ -211,9 +208,7 @@ class SSH(object):
             if arg[0] == '-':
                 components.append(arg)
             else:
-                components.append('{}'.format(arg))
+                components.append(f'{arg}')
 
-        for key, value in options.items():
-            components.append('{}{}{}'.format(key, separator, value))
-
+        components.extend(f'{key}{separator}{value}' for key, value in options.items())
         return " ".join(components)

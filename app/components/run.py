@@ -22,7 +22,7 @@ class ProfileComponent(profile.BaseProfileComponent):
         queue = self.pop_value('_queue', config) if '_queue' in config else settings.QUEUE_COMMANDS
         log_keys = []
 
-        if not task and not command and not '_config' in config:
+        if not task and not command and '_config' not in config:
             self.command.error("Run {} requires '_task', '_command', or '_config' field".format(name))
 
         def _execute(data):

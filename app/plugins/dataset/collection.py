@@ -72,17 +72,17 @@ class Provider(BaseProvider('dataset', 'collection')):
         required_types = None
     ):
         required_types = ensure_list(required_types) if required_types else None
-        required_columns = list()
-        collection = list()
+        required_columns = []
+        collection = []
 
         for query_type, params in query_types.items():
             data_type = params.pop('data', query_type)
             prefix = params.pop('column_prefix', column_prefix)
             functions = params.pop('processors', processors)
 
-            collection_method = getattr(self, "get_{}_collection".format(query_type), None)
+            collection_method = getattr(self, f"get_{query_type}_collection", None)
             if not collection_method and data_type != query_type:
-                collection_method = getattr(self, "get_{}_collection".format(data_type), None)
+                collection_method = getattr(self, f"get_{data_type}_collection", None)
 
             method_params = {
                 'index_field': index_field,
@@ -97,7 +97,7 @@ class Provider(BaseProvider('dataset', 'collection')):
                 data = self.get_collection(data_type, **method_params)
 
             if prefix:
-                data.columns = ["{}_{}".format(query_type, column) for column in data.columns]
+                data.columns = [f"{query_type}_{column}" for column in data.columns]
 
             if functions:
                 for function in functions:

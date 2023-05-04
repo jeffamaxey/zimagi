@@ -62,8 +62,8 @@ class RouterCommand(base.BaseCommand):
         super().add_arguments(parser)
 
         subcommand_help = [
-            "{} {}:".format(self.command_color(self.get_full_name()), self.notice_color('command to execute')),
-            ""
+            f"{self.command_color(self.get_full_name())} {self.notice_color('command to execute')}:",
+            "",
         ]
         for subcommand in self.get_subcommands():
             subcommand_help.extend(wrap(
@@ -85,4 +85,4 @@ class RouterCommand(base.BaseCommand):
 
 
     def __str__(self):
-        return "Router <{}>".format(self.name)
+        return f"Router <{self.name}>"

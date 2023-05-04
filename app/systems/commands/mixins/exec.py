@@ -60,25 +60,25 @@ class ExecMixin(object):
             conn.wrap_file(self._ssh_file)
 
         except Exception as e:
-            self.error("SSH connection to {} failed: {}".format(hostname, e))
+            self.error(f"SSH connection to {hostname} failed: {e}")
 
         return conn
 
     def _ssh_exec(self, ssh, executer, command, args, options):
-        id_prefix = "[{}]".format(ssh.hostname)
+        id_prefix = f"[{ssh.hostname}]"
 
         try:
             return executer(command, args, options)
         except Exception as e:
-            self.error("SSH {} execution failed: {}".format(command, e), prefix = id_prefix)
+            self.error(f"SSH {command} execution failed: {e}", prefix = id_prefix)
 
     def _ssh_file(self, ssh, executer, callback, *args):
-        id_prefix = "[{}]".format(ssh.hostname)
+        id_prefix = f"[{ssh.hostname}]"
 
         try:
             executer(callback, *args)
         except Exception as e:
-            self.error("SFTP transfer failed: {}".format(e), prefix = id_prefix)
+            self.error(f"SFTP transfer failed: {e}", prefix = id_prefix)
 
     def _ssh_callback(self, ssh, stdin, stdout, stderr):
         id_prefix = "[{}]".format(ssh.hostname)

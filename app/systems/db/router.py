@@ -7,9 +7,7 @@ class DatabaseRouter:
         return 'default'
 
     def db_for_write(self, model, **hints):
-        if 'write' in settings.DATABASES:
-            return 'write'
-        return 'default'
+        return 'write' if 'write' in settings.DATABASES else 'default'
 
     def allow_relation(self, obj1, obj2, **hints):
         return True

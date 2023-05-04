@@ -17,8 +17,7 @@ class Test(Command('test')):
             module.Test(self, self.host_name).exec()
 
         self.run_list(
-            supported_types if not self.test_types else self.test_types,
-            run_tests
+            self.test_types if self.test_types else supported_types, run_tests
         )
 
     def _get_test_types(self):

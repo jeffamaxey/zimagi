@@ -30,7 +30,7 @@ class Provider(BaseProvider('parser', 'state')):
             value = self.parse_variable(value, config)
         else:
             for ref_match in re.finditer(self.variable_value_pattern, value):
-                variable_value = self.parse_variable("${}".format(ref_match.group(1)), config)
+                variable_value = self.parse_variable(f"${ref_match.group(1)}", config)
                 if isinstance(variable_value, (list, tuple)):
                     variable_value = ",".join(variable_value)
                 elif isinstance(variable_value, dict):
@@ -41,11 +41,10 @@ class Provider(BaseProvider('parser', 'state')):
         return value
 
     def parse_variable(self, value, config):
-        state_match = re.search(self.variable_pattern, value)
-        if state_match:
+        if state_match := re.search(self.variable_pattern, value):
             variables = {**self.variables, **config.get('state_overrides', {})}
-            new_value = state_match.group(1)
-            key = state_match.group(2)
+            new_value = state_match[1]
+            key = state_match[2]
 
             if new_value in variables:
                 data = variables[new_value]

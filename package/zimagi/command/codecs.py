@@ -28,27 +28,19 @@ def get_id_schema_classes():
 
 def get_bool(item, key):
     value = item.get(key)
-    if isinstance(value, bool):
-        return value
-    return False
+    return value if isinstance(value, bool) else False
 
 def get_string(item, key):
     value = item.get(key)
-    if isinstance(value, str):
-        return value
-    return ''
+    return value if isinstance(value, str) else ''
 
 def get_list(item, key):
     value = item.get(key)
-    if isinstance(value, list):
-        return value
-    return []
+    return value if isinstance(value, list) else []
 
 def get_dict(item, key):
     value = item.get(key)
-    if isinstance(value, dict):
-        return value
-    return {}
+    return value if isinstance(value, dict) else {}
 
 
 def unescape_key(string):
@@ -69,13 +61,13 @@ class ZimagiJSONCodec(object):
         try:
             data = utility.load_json(bytestring.decode('utf-8'))
         except ValueError as exc:
-            raise exceptions.ParseError("Malformed JSON. {}".format(exc))
+            raise exceptions.ParseError(f"Malformed JSON. {exc}")
 
         document = self._convert_to_document(data, base_url)
         if isinstance(document, schema.Object):
             document = schema.Document(content = dict(document))
 
-        elif not (isinstance(document, schema.Document) or isinstance(document, schema.Error)):
+        elif not (isinstance(document, (schema.Document, schema.Error))):
             raise exceptions.ParseError("Top level node should be a document or error.")
 
         return document
@@ -136,8 +128,7 @@ class ZimagiJSONCodec(object):
 
 
     def _get_schema(self, item, key):
-        schema_data = get_dict(item, key)
-        if schema_data:
+        if schema_data := get_dict(item, key):
             return self._decode_schema(schema_data)
         return None
 

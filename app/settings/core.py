@@ -4,6 +4,7 @@ Application settings definition
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.0/ref/settings/
 """
+
 from systems.manager import Manager
 from .config import Config
 
@@ -125,7 +126,7 @@ if COLOR_SOLARIZED:
 # Runtime configurations
 #
 BASE_DATA_PATH = os.path.join(DATA_DIR, 'cli')
-RUNTIME_PATH = "{}.yml".format(BASE_DATA_PATH)
+RUNTIME_PATH = f"{BASE_DATA_PATH}.yml"
 
 DEFAULT_ENV_NAME = Config.string('ZIMAGI_DEFAULT_ENV_NAME', 'default')
 DEFAULT_HOST_NAME = Config.string('ZIMAGI_DEFAULT_HOST_NAME', 'default')

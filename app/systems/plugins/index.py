@@ -33,14 +33,13 @@ def get_plugin_name(name, spec = None):
 
 def get_module_name(key, name, provider = None):
     if key == 'plugin_mixins':
-        module_path = "plugins.mixins.{}".format(name)
+        module_path = f"plugins.mixins.{name}"
     elif key == 'plugin':
-        if provider:
-            module_path = "plugins.{}.{}".format(name, provider)
-        else:
-            module_path = "plugins.{}".format(name)
+        module_path = f"plugins.{name}.{provider}" if provider else f"plugins.{name}"
     else:
-        raise SpecNotFound("Key {} is not supported for plugin: {} ({})".format(key, name, provider))
+        raise SpecNotFound(
+            f"Key {key} is not supported for plugin: {name} ({provider})"
+        )
     return module_path
 
 
@@ -83,7 +82,7 @@ class BaseGenerator(object):
 
     @property
     def dynamic_class_name(self):
-        return "{}Dynamic".format(self.base_class_name)
+        return f"{self.base_class_name}Dynamic"
 
     @property
     def klass(self):
@@ -164,9 +163,7 @@ class BaseGenerator(object):
         for parent in self.parents:
             parent.generate(plugin, self) # Allow parents to initialize class
 
-        if self.ensure_exists:
-            return self.create_overlay(plugin)
-        return plugin
+        return self.create_overlay(plugin) if self.ensure_exists else plugin
 
     def create_process(self):
         # Override in sub class if needed
@@ -205,10 +202,10 @@ class ProviderMixinGenerator(BaseGenerator):
 
 
     def get_spec(self):
-        spec = self.plugin_spec.get(self.name, {})
-        if not spec:
-            raise SpecNotFound("Plugin specification does not exist for {}".format(self.name))
-        return self.parse_values(spec)
+        if spec := self.plugin_spec.get(self.name, {}):
+            return self.parse_values(spec)
+        else:
+            raise SpecNotFound(f"Plugin specification does not exist for {self.name}")
 
     @property
     def base_class_name(self):
@@ -245,7 +242,7 @@ class PluginGenerator(BaseGenerator):
             spec = spec['subtypes'].get(self.subtype, {})
 
         if not spec:
-            raise SpecNotFound("Plugin specification does not exist for {}".format(self.name))
+            raise SpecNotFound(f"Plugin specification does not exist for {self.name}")
         return self.parse_values(spec)
 
     @property
@@ -257,7 +254,7 @@ class PluginGenerator(BaseGenerator):
 
     def get_parent(self):
         if self.subtypes and self.spec.get('base', None) and self.spec['base'] in self.subtypes.keys():
-            parent = BasePlugin("{}.{}".format(self.plugin, self.spec['base']))
+            parent = BasePlugin(f"{self.plugin}.{self.spec['base']}")
         else:
             if 'base' not in self.spec:
                 self.spec['base'] = 'base'
@@ -266,7 +263,9 @@ class PluginGenerator(BaseGenerator):
             try:
                 parent = getattr(importlib.import_module(module_path), 'BasePlugin')
             except Exception as e:
-                raise PluginNotExistsError("Base plugin {} does not exist: {}".format(self.spec['base'], e))
+                raise PluginNotExistsError(
+                    f"Base plugin {self.spec['base']} does not exist: {e}"
+                )
 
         return parent
 
@@ -307,24 +306,16 @@ class ProviderGenerator(PluginGenerator):
 
 
     def get_parent(self):
-        base = None
-        if self.spec.get('base', None):
-            base = self.spec['base']
-
+        base = self.spec['base'] if self.spec.get('base', None) else None
         if self.subtype:
-            plugin = "{}.{}".format(self.plugin, self.subtype)
+            plugin = f"{self.plugin}.{self.subtype}"
             if not base:
                 spec = self.plugin_spec.get(self.plugin, {}).get('providers', {}).get(self.provider, {})
                 base = spec.get('base', None)
         else:
             plugin = self.plugin
 
-        if base:
-            parent = BaseProvider(plugin, base)
-        else:
-            parent = BasePlugin(plugin)
-
-        return parent
+        return BaseProvider(plugin, base) if base else BasePlugin(plugin)
 
     def create_process(self):
         pass
@@ -334,24 +325,26 @@ def BasePlugin(plugin_name, ensure_exists = False):
     plugin = PluginGenerator(plugin_name,
         ensure_exists = ensure_exists
     )
-    klass = plugin.klass
-    if klass:
+    if klass := plugin.klass:
         return klass
 
     if not plugin.spec:
-        raise PluginNotExistsError("Plugin {} does not exist yet".format(plugin.base_class_name))
+        raise PluginNotExistsError(
+            f"Plugin {plugin.base_class_name} does not exist yet"
+        )
 
     return plugin.create()
 
 
 def ProviderMixin(plugin_mixin_name):
     mixin = ProviderMixinGenerator(plugin_mixin_name)
-    klass = mixin.klass
-    if klass:
+    if klass := mixin.klass:
         return klass
 
     if not mixin.spec:
-        raise PluginNotExistsError("Plugin provider mixin {} does not exist yet".format(mixin.base_class_name))
+        raise PluginNotExistsError(
+            f"Plugin provider mixin {mixin.base_class_name} does not exist yet"
+        )
 
     return mixin.create()
 
@@ -360,24 +353,20 @@ def BaseProvider(plugin_name, provider_name, ensure_exists = False):
     provider = ProviderGenerator(plugin_name, provider_name,
         ensure_exists = ensure_exists
     )
-    klass = provider.klass
-    if klass:
-        return klass
-
-    return provider.create()
+    return klass if (klass := provider.klass) else provider.create()
 
 
 def display_plugin_info(klass, prefix = '', display_function = logger.info):
-    display_function("{}{}".format(prefix, klass.__name__))
+    display_function(f"{prefix}{klass.__name__}")
     for parent in klass.__bases__:
-        display_plugin_info(parent, "{}  << ".format(prefix), display_function)
+        display_plugin_info(parent, f"{prefix}  << ", display_function)
 
-    display_function("{} properties:".format(prefix))
+    display_function(f"{prefix} properties:")
     for attribute in dir(klass):
         if not attribute.startswith('__') and not callable(getattr(klass, attribute)):
-            display_function("{}  ->  {}".format(prefix, attribute))
+            display_function(f"{prefix}  ->  {attribute}")
 
-    display_function("{} methods:".format(prefix))
+    display_function(f"{prefix} methods:")
     for attribute in dir(klass):
         if not attribute.startswith('__') and callable(getattr(klass, attribute)):
-            display_function("{}  **  {}".format(prefix, attribute))
+            display_function(f"{prefix}  **  {attribute}")

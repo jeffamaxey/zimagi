@@ -117,14 +117,13 @@ class DataSchema(AutoSchema):
     def get_responses(self, path, method):
         if self.view.action == 'csv':
             return get_csv_response_schema('CSV download of field data')
-        else:
-            responses = super().get_responses(path, method)
+        responses = super().get_responses(path, method)
 
-            if self.view.action in ('meta', 'json'):
-                for status_code, response in responses.items():
-                    for format, info in response['content'].items():
-                        response['content'][format]['schema'] = {
-                            'type': 'array',
-                            'items': info['schema'] if self.view.action == 'meta' else {}
-                        }
-            return responses
+        if self.view.action in ('meta', 'json'):
+            for status_code, response in responses.items():
+                for format, info in response['content'].items():
+                    response['content'][format]['schema'] = {
+                        'type': 'array',
+                        'items': info['schema'] if self.view.action == 'meta' else {}
+                    }
+        return responses

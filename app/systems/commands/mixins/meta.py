@@ -123,11 +123,7 @@ class MetaBaseMixin(type):
 
             if _default:
                 value = getattr(self, _default, None)
-                if value is not None:
-                    default = value
-                else:
-                    default = _default
-
+                default = value if value is not None else _default
             self.parse_variable(_instance_name, optional, str, help_text,
                 value_label = 'NAME',
                 default = default,
@@ -142,11 +138,7 @@ class MetaBaseMixin(type):
 
             if _default:
                 value = getattr(self, _default, None)
-                if value is not None:
-                    default = value
-                else:
-                    default = _default
-
+                default = value if value is not None else _default
             if default is None:
                 return self.options.get(_instance_name) is not None
 
